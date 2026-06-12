@@ -9,9 +9,9 @@
 
 ## 📋 Sprints & Status
 
-- [x] **Sprint 1:** Setup & Infraestrutura (EM PROGRESSO)
-- [ ] **Sprint 2:** Bot Telegram + Parser IA
-- [ ] **Sprint 3:** Banco de Dados & Persistência
+- [x] **Sprint 1:** Setup & Infraestrutura (CONCLUÍDO)
+- [x] **Sprint 2:** Bot Telegram + Parser IA (CONCLUÍDO)
+- [x] **Sprint 3:** Rotas REST & API (CONCLUÍDO)
 - [ ] **Sprint 4:** Frontend Base & Dark Mode
 - [ ] **Sprint 5:** Autenticação Firebase
 - [ ] **Sprint 6:** Gráficos & Dashboard
@@ -72,6 +72,7 @@ CREATE TABLE transactions (
   category VARCHAR(50),
   payment_method VARCHAR(20),
   installments INTEGER DEFAULT 1,
+  type VARCHAR(10) DEFAULT 'despesa',
   date TIMESTAMP DEFAULT NOW(),
   created_at TIMESTAMP DEFAULT NOW()
 );
@@ -107,6 +108,38 @@ curl http://localhost:3000/health
 
 ---
 
+## 🔌 API REST (Sprint 3)
+
+Todas as rotas requerem autenticação via header `x-chat-id` (seu ID do Telegram chat):
+
+### Transações
+- `GET /api/transactions` — listar transações
+- `POST /api/transactions` — criar transação via AI parser
+  ```json
+  { "message": "gastei 50 no mercado" }
+  ```
+- `DELETE /api/transactions/:id` — deletar transação
+
+### Summary
+- `GET /api/transactions/summary` — resumo do mês (saldo, despesas, receitas por categoria)
+
+### Orçamentos
+- `GET /api/budgets` — listar orçamentos
+- `POST /api/budgets` — criar orçamento
+  ```json
+  { "category": "alimentação", "monthly_limit": 500 }
+  ```
+- `PUT /api/budgets/:id` — atualizar limite
+- `DELETE /api/budgets/:id` — deletar orçamento
+
+**Exemplo com curl:**
+```bash
+curl -X GET http://localhost:3000/api/transactions \
+  -H "x-chat-id: 123456789"
+```
+
+---
+
 ## 🏗️ Estrutura do Projeto
 
 ```
@@ -116,10 +149,18 @@ PorquIA/
 │   │   ├── server.js
 │   │   ├── config/
 │   │   │   └── supabase.js
+│   │   ├── bot/
+│   │   │   └── index.js
+│   │   ├── services/
+│   │   │   ├── aiParser.js
+│   │   │   └── transactionService.js
 │   │   ├── routes/
-│   │   ├── models/
-│   │   └── utils/
+│   │   │   ├── transactions.js
+│   │   │   └── budgets.js
+│   │   └── middleware/
+│   │       └── auth.js
 │   ├── .env (preencher)
+│   ├── .env.example
 │   └── package.json
 ├── frontend/
 │   ├── src/
@@ -194,4 +235,4 @@ cd frontend && npm run build && npm run start
 ---
 
 *Último update: 2026-06-12*
-*Sprint Atual: 1 (Setup & Infraestrutura)*
+*Sprint Atual: 3 (Banco de Dados & Persistência)*
