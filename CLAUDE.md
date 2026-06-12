@@ -12,7 +12,7 @@
 - [x] **Sprint 1:** Setup & Infraestrutura (CONCLUÍDO)
 - [x] **Sprint 2:** Bot Telegram + Parser IA (CONCLUÍDO)
 - [x] **Sprint 3:** Rotas REST & API (CONCLUÍDO)
-- [ ] **Sprint 4:** Frontend Base & Dark Mode
+- [x] **Sprint 4:** Frontend Base & Dark Mode (CONCLUÍDO)
 - [ ] **Sprint 5:** Autenticação Firebase
 - [ ] **Sprint 6:** Gráficos & Dashboard
 - [ ] **Sprint 7:** Orçamentos & Alertas
@@ -165,10 +165,19 @@ PorquIA/
 ├── frontend/
 │   ├── src/
 │   │   ├── app/
+│   │   │   ├── page.tsx (home → redireciona para dashboard)
+│   │   │   ├── dashboard/page.tsx
+│   │   │   ├── transactions/page.tsx
+│   │   │   ├── budgets/page.tsx
+│   │   │   ├── layout.tsx
+│   │   │   └── globals.css
 │   │   ├── components/
-│   │   ├── lib/
-│   │   └── utils/
-│   ├── .env.local (preencher)
+│   │   │   ├── Sidebar.tsx
+│   │   │   └── Charts.tsx
+│   │   └── lib/
+│   │       ├── api.ts
+│   │       └── hooks.ts
+│   ├── .env.local.example
 │   └── package.json
 └── docs/
     ├── SUMARIO_EXECUTIVO.md
@@ -235,4 +244,4 @@ cd frontend && npm run build && npm run start
 ---
 
 *Último update: 2026-06-12*
-*Sprint Atual: 3 (Banco de Dados & Persistência)*
+*Sprint Atual: 5 (Autenticação Firebase)*
