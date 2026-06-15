@@ -75,7 +75,6 @@ h1, h2, h3, h4, h5, h6 {
   .recharts-legend-item-text { fill: #cbd5e1 !important; }
 }
 
-/* Animations */
 @keyframes fadeInUp {
   from {
     opacity: 0;
@@ -99,4 +98,13 @@ h1, h2, h3, h4, h5, h6 {
 
 .animate-fade-in-up {
   animation: fadeInUp 0.6s ease-out;
+}
+
+/* Glassmorphism utilities */
+.glass-panel {
+  @apply bg-white/70 dark:bg-zinc-900/60 backdrop-blur-xl border border-white/50 dark:border-white/10 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] dark:shadow-[0_8px_32px_0_rgba(0,0,0,0.3)];
+}
+
+.glass-panel-hover {
+  @apply hover:bg-white/90 dark:hover:bg-zinc-900/80 transition-all duration-300;
 }

@@ -17,62 +17,53 @@ const revenueData = [
 
 export default function DashboardPage() {
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 grid-flow-row-dense gap-6 h-full pb-10 lg:pb-0">
       
-      {/* Left Column (8 columns wide) */}
-      <div className="lg:col-span-8 flex flex-col gap-6">
-        
-        {/* Top Row: Balance, Sells, Revenue */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-[220px]">
-          <div className="md:col-span-1 h-full">
-            <BalanceCard />
-          </div>
-          <div className="md:col-span-1 h-full">
-            <StatCard 
-              title="Sells" 
-              value="$2,400.00" 
-              data={sellsData} 
-              color="#ec4899" 
-              gradientId="sellsGradient" 
-              gradientColors={['#fbcfe8', '#ec4899']} 
-            />
-          </div>
-          <div className="md:col-span-1 h-full">
-            <StatCard 
-              title="Revenue" 
-              value="$1,250.00" 
-              data={revenueData} 
-              color="#eab308" 
-              gradientId="revenueGradient" 
-              gradientColors={['#fef08a', '#eab308']} 
-            />
-          </div>
-        </div>
-
-        {/* Bottom Row: Main Chart */}
-        <div className="flex-1 min-h-[300px]">
-          <MainChartCard />
-        </div>
+      {/* Main Chart spans large area */}
+      <div className="md:col-span-2 lg:col-span-8 lg:row-span-2 min-h-[320px]">
+        <MainChartCard />
       </div>
 
-      {/* Right Column (4 columns wide) */}
-      <div className="lg:col-span-4 flex flex-col gap-6">
-        
-        {/* Activity */}
-        <div className="h-[220px]">
-           <ActivityCard />
-        </div>
+      {/* Stats Cards */}
+      <div className="md:col-span-1 lg:col-span-4 min-h-[160px]">
+        <StatCard 
+          title="Sells" 
+          value="$2,400.00" 
+          data={sellsData} 
+          color="#ec4899" 
+          gradientId="sellsGradient" 
+          gradientColors={['#fbcfe8', '#ec4899']} 
+        />
+      </div>
+      <div className="md:col-span-1 lg:col-span-4 min-h-[160px]">
+        <StatCard 
+          title="Revenue" 
+          value="$1,250.00" 
+          data={revenueData} 
+          color="#eab308" 
+          gradientId="revenueGradient" 
+          gradientColors={['#fef08a', '#eab308']} 
+        />
+      </div>
 
-        {/* Payments */}
-        <div className="h-[280px]">
-           <PaymentsCard />
-        </div>
+      {/* Balance Card */}
+      <div className="md:col-span-2 lg:col-span-4 lg:row-span-1 min-h-[200px]">
+        <BalanceCard />
+      </div>
 
-        {/* Goals */}
-        <div className="flex-1 min-h-[220px]">
-           <GoalsCard />
-        </div>
+      {/* Activity */}
+      <div className="md:col-span-1 lg:col-span-4 lg:row-span-1 min-h-[240px]">
+         <ActivityCard />
+      </div>
 
+      {/* Payments */}
+      <div className="md:col-span-1 lg:col-span-4 lg:row-span-1 min-h-[260px]">
+         <PaymentsCard />
+      </div>
+
+      {/* Goals */}
+      <div className="md:col-span-2 lg:col-span-4 lg:row-span-1 min-h-[260px]">
+         <GoalsCard />
       </div>
 
     </div>

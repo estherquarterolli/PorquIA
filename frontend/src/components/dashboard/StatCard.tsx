@@ -13,10 +13,10 @@ interface StatCardProps {
 
 export function StatCard({ title, value, data, color, gradientId, gradientColors }: StatCardProps) {
   return (
-    <div className="bg-white rounded-3xl p-5 shadow-sm border border-gray-50 flex flex-col justify-between h-full group hover:shadow-md transition-shadow">
+    <div className="glass-panel glass-panel-hover rounded-3xl p-6 flex flex-col justify-between h-full group">
       <div>
-        <p className="text-gray-500 text-sm font-medium mb-1">{title}</p>
-        <h3 className="text-2xl font-bold text-gray-900">{value}</h3>
+        <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mb-1 tracking-wide">{title}</p>
+        <h3 className="text-3xl font-bold text-slate-900 dark:text-white">{value}</h3>
       </div>
       
       <div className="h-16 mt-4 w-full">
@@ -32,9 +32,10 @@ export function StatCard({ title, value, data, color, gradientId, gradientColors
               type="monotone"
               dataKey="value"
               stroke={`url(#${gradientId})`}
-              strokeWidth={3}
+              strokeWidth={4}
               dot={false}
               isAnimationActive={true}
+              style={{ filter: `drop-shadow(0px 4px 6px ${gradientColors[1]}40)` }}
             />
           </LineChart>
         </ResponsiveContainer>
