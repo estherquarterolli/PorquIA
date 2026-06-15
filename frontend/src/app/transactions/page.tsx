@@ -1,164 +1,218 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useTransactions } from '@/lib/hooks';
+import { Transaction } from '@/lib/api';
+import { Download, Trash2, TrendingDown, TrendingUp } from 'lucide-react';
 
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+function brl(v: number) {
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
+}
+
+const CATEGORY_EMOJI: Record<string, string> = {
+  alimentação: '🍔', transporte: '🚗', moradia: '🏠', saúde: '💊',
+  lazer: '🎮', educação: '📚', vestuário: '👕', serviços: '🔧',
+  investimento: '📈', outros: '📦',
+};
+
+function exportCSV(transactions: Transaction[]) {
+  const header = 'Data,Descrição,Categoria,Método,Tipo,Valor\n';
+  const rows = transactions.map((tx) =>
+    [
+      new Date(tx.date).toLocaleDateString('pt-BR'),
+      `"${tx.description}"`,
+      tx.category,
+      tx.payment_method || '',
+      tx.type,
+      tx.amount.toFixed(2).replace('.', ','),
+    ].join(',')
+  ).join('\n');
+
+  const blob = new Blob([header + rows], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `transacoes-${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function getMonthOptions() {
+  const options = [{ value: '', label: 'Todos os meses' }];
+  for (let i = 0; i < 12; i++) {
+    const d = new Date();
+    d.setDate(1);
+    d.setMonth(d.getMonth() - i);
+    const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const label = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+    options.push({ value, label: label.charAt(0).toUpperCase() + label.slice(1) });
+  }
+  return options;
 }
 
 export default function TransactionsPage() {
-  const { transactions, loading, error, fetch, create, remove } = useTransactions();
+  const { transactions, loading, fetch, create, remove } = useTransactions();
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [typeFilter, setTypeFilter] = useState<'all' | 'despesa' | 'receita'>('all');
+  const [monthFilter, setMonthFilter] = useState('');
 
-  useEffect(() => {
-    fetch();
-  }, [fetch]);
+  const monthOptions = useMemo(() => getMonthOptions(), []);
+
+  useEffect(() => { fetch(); }, [fetch]);
+
+  const filtered = useMemo(() => {
+    return transactions.filter((tx) => {
+      if (search && !tx.description.toLowerCase().includes(search.toLowerCase()) && !tx.category.toLowerCase().includes(search.toLowerCase())) return false;
+      if (typeFilter !== 'all' && tx.type !== typeFilter) return false;
+      if (monthFilter) {
+        const d = new Date(tx.date);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        if (key !== monthFilter) return false;
+      }
+      return true;
+    });
+  }, [transactions, search, typeFilter, monthFilter]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!message.trim()) return;
-
     try {
       setIsSubmitting(true);
       setSubmitError(null);
-      await create(message);
+      setSubmitSuccess(null);
+      const result = await create(message);
       setMessage('');
+      setSubmitSuccess(`✓ ${result.description} foi registrado`);
+      setTimeout(() => setSubmitSuccess(null), 4000);
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : 'Erro ao criar transação');
+      setSubmitError(err instanceof Error ? err.message : 'Erro');
     } finally {
       setIsSubmitting(false);
     }
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('Tem certeza que deseja deletar esta transação?')) return;
-
-    try {
-      setDeleteError(null);
-      await remove(id);
-    } catch (err) {
-      setDeleteError(err instanceof Error ? err.message : 'Erro ao deletar transação');
-    }
+    if (!confirm('Deletar transação?')) return;
+    await remove(id).catch(() => {});
   }
 
   return (
-    <div className="flex-1 p-8 overflow-auto">
-      <h1 className="text-3xl font-bold text-zinc-900 dark:text-white mb-8">Transações</h1>
+    <div className="min-h-screen px-6 lg:px-10 py-10">
+      <div className="max-w-5xl mx-auto space-y-8">
+        {/* Header */}
+        <div className="border-b border-slate-200/50 dark:border-slate-700/50 pb-8">
+          <h1 className="text-5xl font-bold text-slate-900 dark:text-white mb-2">Transações</h1>
+          <p className="text-slate-600 dark:text-slate-400 text-base">Descreva em linguagem natural — a IA interpreta</p>
+        </div>
 
-      <div className="bg-white dark:bg-zinc-900 rounded-lg p-6 shadow-sm border border-zinc-200 dark:border-zinc-800 mb-8">
-        <h2 className="text-xl font-bold text-zinc-900 dark:text-white mb-4">
-          Adicionar Transação
-        </h2>
-        <p className="text-zinc-600 dark:text-zinc-400 text-sm mb-4">
-          Descreva sua transação de forma natural:
-        </p>
-        <p className="text-zinc-500 dark:text-zinc-500 text-xs mb-4">
-          Exemplos: &quot;gastei 50 no mercado&quot;, &quot;paguei 1200 de aluguel no pix&quot;,
-          &quot;recebi salário 5000&quot;
-        </p>
+        {/* Input */}
+        <div className="bg-white/60 dark:bg-slate-800/60 backdrop-blur-xl rounded-2xl p-6 shadow-sm dark:shadow-lg dark:shadow-black/20 border border-slate-200/50 dark:border-slate-700/50">
+          <form onSubmit={handleSubmit} className="space-y-3">
+            <div className="relative">
+              <input
+                type="text"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder='Ex: "gastei 50 no mercado"'
+                className="w-full px-5 py-3.5 pr-28 border border-slate-200/50 dark:border-slate-600/50 rounded-xl bg-white/50 dark:bg-slate-700/30 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base backdrop-blur-sm"
+                disabled={isSubmitting}
+              />
+              <button
+                type="submit"
+                disabled={isSubmitting || !message.trim()}
+                className="absolute right-2 top-1/2 -translate-y-1/2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 dark:disabled:bg-slate-700 text-white disabled:text-slate-400 rounded-lg text-sm font-bold transition-all"
+              >
+                {isSubmitting ? '...' : 'Enviar'}
+              </button>
+            </div>
+            {submitSuccess && <p className="text-green-600 dark:text-green-400 text-sm font-semibold">{submitSuccess}</p>}
+            {submitError && <p className="text-red-600 dark:text-red-400 text-sm">{submitError}</p>}
+          </form>
+        </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Filters */}
+        <div className="flex flex-col sm:flex-row gap-3">
           <input
-            type="text"
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            placeholder="Digite aqui..."
-            className="w-full px-4 py-3 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            disabled={isSubmitting}
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar..."
+            className="flex-1 px-4 py-2.5 border border-slate-200/50 dark:border-slate-600/50 rounded-xl bg-white/50 dark:bg-slate-800/50 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm backdrop-blur-sm"
           />
-          {submitError && <p className="text-red-600 dark:text-red-400 text-sm">{submitError}</p>}
-          <button
-            type="submit"
-            disabled={isSubmitting || !message.trim()}
-            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg font-medium transition-colors"
+          <select
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value as typeof typeFilter)}
+            className="px-4 py-2.5 border border-slate-200/50 dark:border-slate-600/50 rounded-xl bg-white/50 dark:bg-slate-800/50 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 backdrop-blur-sm"
           >
-            {isSubmitting ? 'Processando...' : 'Adicionar'}
-          </button>
-        </form>
-      </div>
+            <option value="all">Todos</option>
+            <option value="despesa">Despesas</option>
+            <option value="receita">Receitas</option>
+          </select>
+          <select
+            value={monthFilter}
+            onChange={(e) => setMonthFilter(e.target.value)}
+            className="px-4 py-2.5 border border-slate-200/50 dark:border-slate-600/50 rounded-xl bg-white/50 dark:bg-slate-800/50 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 backdrop-blur-sm"
+          >
+            {monthOptions.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+          {transactions.length > 0 && (
+            <button
+              onClick={() => exportCSV(filtered)}
+              className="flex items-center gap-2 px-4 py-2.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border border-blue-200/50 dark:border-blue-800/50 rounded-xl font-semibold text-sm hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-all"
+            >
+              <Download className="w-4 h-4" />
+              CSV
+            </button>
+          )}
+        </div>
 
-      <div className="bg-white dark:bg-zinc-900 rounded-lg p-6 shadow-sm border border-zinc-200 dark:border-zinc-800">
-        <h2 className="text-xl font-bold text-zinc-900 dark:text-white mb-4">
-          Lista de Transações
-        </h2>
-
-        {deleteError && <p className="text-red-600 dark:text-red-400 text-sm mb-4">{deleteError}</p>}
-
-        {loading ? (
-          <p className="text-zinc-500">Carregando transações...</p>
-        ) : transactions.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="border-b border-zinc-200 dark:border-zinc-800">
-                <tr>
-                  <th className="text-left py-3 px-4 font-semibold text-zinc-900 dark:text-white">
-                    Data
-                  </th>
-                  <th className="text-left py-3 px-4 font-semibold text-zinc-900 dark:text-white">
-                    Descrição
-                  </th>
-                  <th className="text-left py-3 px-4 font-semibold text-zinc-900 dark:text-white">
-                    Categoria
-                  </th>
-                  <th className="text-left py-3 px-4 font-semibold text-zinc-900 dark:text-white">
-                    Método
-                  </th>
-                  <th className="text-right py-3 px-4 font-semibold text-zinc-900 dark:text-white">
-                    Valor
-                  </th>
-                  <th className="text-center py-3 px-4 font-semibold text-zinc-900 dark:text-white">
-                    Ação
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {transactions.map((tx) => (
-                  <tr
-                    key={tx.id}
-                    className="border-b border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+        {/* List */}
+        <div className="bg-white/60 dark:bg-slate-800/60 backdrop-blur-xl rounded-2xl shadow-sm dark:shadow-lg dark:shadow-black/20 border border-slate-200/50 dark:border-slate-700/50 overflow-hidden">
+          {loading ? (
+            <div className="p-8 text-center text-slate-400">Carregando...</div>
+          ) : filtered.length === 0 ? (
+            <div className="text-center py-12 text-slate-400">
+              <p className="text-sm font-medium">Nenhuma transação</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-200/50 dark:divide-slate-700/50">
+              {filtered.map((tx) => (
+                <div key={tx.id} className="flex items-center gap-4 px-6 py-4 hover:bg-slate-100/50 dark:hover:bg-slate-700/50 transition-colors group">
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                    tx.type === 'receita' ? 'bg-blue-100 dark:bg-blue-900/30' : 'bg-rose-100 dark:bg-rose-900/30'
+                  }`}>
+                    {tx.type === 'receita' ? (
+                      <TrendingUp className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                    ) : (
+                      <TrendingDown className="w-5 h-5 text-rose-600 dark:text-rose-400" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-slate-900 dark:text-white text-sm">{tx.description}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{tx.category}</p>
+                  </div>
+                  <p className={`font-bold tabular-nums text-sm ${
+                    tx.type === 'receita' ? 'text-blue-600 dark:text-blue-400' : 'text-rose-600 dark:text-rose-400'
+                  }`}>
+                    {tx.type === 'receita' ? '+' : '-'}{brl(tx.amount)}
+                  </p>
+                  <button
+                    onClick={() => handleDelete(tx.id)}
+                    className="p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
                   >
-                    <td className="py-3 px-4 text-zinc-600 dark:text-zinc-400">
-                      {new Date(tx.date).toLocaleDateString('pt-BR')}
-                    </td>
-                    <td className="py-3 px-4 text-zinc-900 dark:text-white font-medium">
-                      {tx.description}
-                    </td>
-                    <td className="py-3 px-4 text-zinc-600 dark:text-zinc-400">
-                      {tx.category}
-                    </td>
-                    <td className="py-3 px-4 text-zinc-600 dark:text-zinc-400">
-                      {tx.payment_method}
-                    </td>
-                    <td
-                      className={`py-3 px-4 text-right font-semibold ${
-                        tx.type === 'receita'
-                          ? 'text-green-600 dark:text-green-400'
-                          : 'text-red-600 dark:text-red-400'
-                      }`}
-                    >
-                      {tx.type === 'receita' ? '+' : '-'}
-                      {formatCurrency(tx.amount)}
-                    </td>
-                    <td className="py-3 px-4 text-center">
-                      <button
-                        onClick={() => handleDelete(tx.id)}
-                        className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 text-sm font-medium"
-                      >
-                        Deletar
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p className="text-zinc-500">Nenhuma transação registrada</p>
-        )}
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

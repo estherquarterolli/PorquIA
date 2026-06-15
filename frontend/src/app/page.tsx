@@ -2,29 +2,21 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { api } from '@/lib/api';
+import { useAuth } from '@/lib/auth-context';
 
 export default function Home() {
+  const { user, loading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    const chatId = localStorage.getItem('chat_id');
-
-    if (chatId) {
-      api.setChatId(chatId);
-    } else {
-      const promptChatId = prompt('Digite seu ID do Telegram (chat_id):');
-      if (promptChatId) {
-        api.setChatId(promptChatId);
-      }
+    if (!loading) {
+      router.push(user ? '/dashboard' : '/login');
     }
-
-    router.push('/dashboard');
-  }, [router]);
+  }, [user, loading, router]);
 
   return (
-    <div className="flex-1 flex items-center justify-center">
-      <p className="text-zinc-500">Redirecionando...</p>
+    <div className="flex-1 flex items-center justify-center min-h-screen">
+      <p className="text-zinc-500">Carregando...</p>
     </div>
   );
 }

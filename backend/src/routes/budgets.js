@@ -1,7 +1,18 @@
 const express = require('express');
 const supabase = require('../config/supabase');
+const { getBudgetStatus } = require('../services/transactionService');
 
 const router = express.Router();
+
+router.get('/status', async (req, res) => {
+  try {
+    const data = await getBudgetStatus(req.userId);
+    res.json(data);
+  } catch (err) {
+    console.error('Erro GET /budgets/status:', err);
+    res.status(500).json({ error: 'Erro ao buscar status dos orçamentos' });
+  }
+});
 
 router.get('/', async (req, res) => {
   try {

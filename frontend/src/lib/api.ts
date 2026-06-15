@@ -1,3 +1,5 @@
+import { auth } from './firebase';
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
 export interface Transaction {
@@ -28,20 +30,49 @@ export interface Summary {
   porCategoria: Record<string, number>;
 }
 
+export interface MonthlyData {
+  month: string;
+  label: string;
+  despesas: number;
+  receitas: number;
+}
+
+export interface BudgetStatus extends Budget {
+  spent: number;
+  percent: number;
+  status: 'ok' | 'warning' | 'over';
+}
+
+export interface InvestmentMonth {
+  month: string;
+  label: string;
+  total: number;
+}
+
+export interface Subscription {
+  description: string;
+  category: string;
+  amount: number;
+  frequency: 'semanal' | 'quinzenal' | 'mensal' | 'anual';
+  occurrences: number;
+  last_charge: string;
+  next_charge: string;
+  total_spent: number;
+}
+
+export interface InvestmentSummary {
+  totalMes: number;
+  totalAno: number;
+  mediaMensal: number;
+  historico: InvestmentMonth[];
+  ultimosAportes: Pick<Transaction, 'id' | 'amount' | 'description' | 'date'>[];
+}
+
 class ApiClient {
-  private chatId: string | null = null;
-
-  setChatId(id: string) {
-    this.chatId = id;
-    localStorage.setItem('chat_id', id);
-  }
-
-  getChatId(): string {
-    if (this.chatId) return this.chatId;
-    const stored = localStorage.getItem('chat_id');
-    if (!stored) throw new Error('Chat ID não configurado');
-    this.chatId = stored;
-    return this.chatId;
+  private async getToken(): Promise<string> {
+    const user = auth.currentUser;
+    if (!user) throw new Error('Não autenticado');
+    return user.getIdToken();
   }
 
   private async request<T>(
@@ -49,14 +80,14 @@ class ApiClient {
     endpoint: string,
     body?: Record<string, unknown>
   ): Promise<T> {
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      'x-chat-id': this.getChatId(),
-    };
+    const token = await this.getToken();
 
     const options: RequestInit = {
       method,
-      headers,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
     };
 
     if (body) {
@@ -103,6 +134,30 @@ class ApiClient {
 
   async deleteBudget(id: string): Promise<{ data: Budget }> {
     return this.request('DELETE', `/api/budgets/${id}`);
+  }
+
+  async getMonthlyData(months = 6): Promise<MonthlyData[]> {
+    return this.request('GET', `/api/transactions/monthly?months=${months}`);
+  }
+
+  async getBudgetStatus(): Promise<BudgetStatus[]> {
+    return this.request('GET', '/api/budgets/status');
+  }
+
+  async getInvestmentSummary(): Promise<InvestmentSummary> {
+    return this.request('GET', '/api/investments/summary');
+  }
+
+  async getSubscriptions(): Promise<Subscription[]> {
+    return this.request('GET', '/api/subscriptions');
+  }
+
+  async getUserProfile(): Promise<{ id: string; email: string; telegram_chat_id: string | null; created_at: string }> {
+    return this.request('GET', '/api/users/profile');
+  }
+
+  async linkTelegram(telegramChatId: string): Promise<void> {
+    return this.request('POST', '/api/users/link-telegram', { telegram_chat_id: telegramChatId });
   }
 }
 

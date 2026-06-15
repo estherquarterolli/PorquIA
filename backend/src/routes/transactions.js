@@ -1,7 +1,7 @@
 const express = require('express');
 const supabase = require('../config/supabase');
 const { parseTransaction } = require('../services/aiParser');
-const { createTransaction, getSummary, getLastTransactions } = require('../services/transactionService');
+const { createTransaction, getSummary, getLastTransactions, getMonthlyHistory } = require('../services/transactionService');
 
 const router = express.Router();
 
@@ -20,6 +20,17 @@ router.get('/', async (req, res) => {
   } catch (err) {
     console.error('Erro GET /transactions:', err);
     res.status(500).json({ error: 'Erro ao buscar transações' });
+  }
+});
+
+router.get('/monthly', async (req, res) => {
+  try {
+    const months = parseInt(req.query.months) || 6;
+    const data = await getMonthlyHistory(req.userId, months);
+    res.json(data);
+  } catch (err) {
+    console.error('Erro GET /monthly:', err);
+    res.status(500).json({ error: 'Erro ao buscar histórico mensal' });
   }
 });
 
