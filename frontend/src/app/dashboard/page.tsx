@@ -14,6 +14,7 @@ import {
 import { useAuth } from '@/lib/auth-context';
 import { useProfile } from '@/lib/profile-context';
 import { useSummary } from '@/lib/hooks';
+import { DashboardCharts } from '@/components/dashboard/DashboardCharts';
 
 function greeting() {
   const h = new Date().getHours();
@@ -163,6 +164,9 @@ export default function DashboardPage() {
           tint="violet"
         />
       </div>
+
+      {/* Gráficos */}
+      <DashboardCharts porCategoria={summary?.porCategoria ?? {}} />
     </div>
   );
 }

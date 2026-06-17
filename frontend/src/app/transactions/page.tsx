@@ -37,15 +37,26 @@ function exportCSV(transactions: Transaction[]) {
   URL.revokeObjectURL(url);
 }
 
-function getMonthOptions() {
+function monthKey(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+// Opções de mês a partir das transações existentes (inclui meses FUTUROS
+// criados por parcelamentos) + os próximos 3 meses e o mês atual.
+function buildMonthOptions(transactions: Transaction[]) {
+  const keys = new Set<string>();
+  const now = new Date();
+  for (let i = -1; i <= 3; i++) {
+    keys.add(monthKey(new Date(now.getFullYear(), now.getMonth() + i, 1)));
+  }
+  for (const tx of transactions) keys.add(monthKey(new Date(tx.date)));
+
+  const sorted = [...keys].sort().reverse(); // futuro/recente primeiro
   const options = [{ value: '', label: 'Todos os meses' }];
-  for (let i = 0; i < 12; i++) {
-    const d = new Date();
-    d.setDate(1);
-    d.setMonth(d.getMonth() - i);
-    const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    const label = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-    options.push({ value, label: label.charAt(0).toUpperCase() + label.slice(1) });
+  for (const key of sorted) {
+    const [y, m] = key.split('-').map(Number);
+    const label = new Date(y, m - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+    options.push({ value: key, label: label.charAt(0).toUpperCase() + label.slice(1) });
   }
   return options;
 }
@@ -61,7 +72,7 @@ export default function TransactionsPage() {
   const [typeFilter, setTypeFilter] = useState<'all' | 'despesa' | 'receita'>('all');
   const [monthFilter, setMonthFilter] = useState('');
 
-  const monthOptions = useMemo(() => getMonthOptions(), []);
+  const monthOptions = useMemo(() => buildMonthOptions(transactions), [transactions]);
 
   useEffect(() => { fetch(); }, [fetch]);
 
@@ -89,6 +100,7 @@ export default function TransactionsPage() {
       setMessage('');
       setSubmitSuccess(`✓ ${result.description} foi registrado`);
       setTimeout(() => setSubmitSuccess(null), 4000);
+      fetch(); // recarrega para refletir parcelas futuras
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Erro');
     } finally {

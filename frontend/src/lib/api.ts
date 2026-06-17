@@ -104,7 +104,7 @@ class ApiClient {
     return response.json();
   }
 
-  async getTransactions(limit = 50): Promise<{ data: Transaction[] }> {
+  async getTransactions(limit = 300): Promise<{ data: Transaction[] }> {
     return this.request('GET', `/api/transactions?limit=${limit}`);
   }
 

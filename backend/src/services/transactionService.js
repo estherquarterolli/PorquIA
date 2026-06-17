@@ -45,22 +45,67 @@ async function findOrCreateUserByTelegramId(chatId) {
 }
 
 async function createTransaction(userId, parsed) {
-  const { data, error } = await supabase
-    .from('transactions')
-    .insert({
+  const installments = Math.max(1, parseInt(parsed.installments) || 1);
+  const perAmount = Number(parsed.amount);
+  const type = parsed.type || 'despesa';
+
+  // Mês inicial: usa start_date ("YYYY-MM") se vier; senão o mês atual.
+  let startDate;
+  if (parsed.start_date && /^\d{4}-\d{2}$/.test(parsed.start_date)) {
+    const [y, m] = parsed.start_date.split('-').map(Number);
+    startDate = new Date(y, m - 1, 1, 12, 0, 0);
+  } else {
+    startDate = new Date();
+  }
+
+  // Sem parcelamento → uma linha só (comportamento padrão)
+  if (installments <= 1) {
+    const { data, error } = await supabase
+      .from('transactions')
+      .insert({
+        user_id: userId,
+        amount: perAmount,
+        description: parsed.description,
+        category: parsed.category,
+        payment_method: parsed.payment_method,
+        installments: 1,
+        type,
+        date: startDate.toISOString(),
+      })
+      .select()
+      .single();
+
+    if (error) throw new Error(`Erro ao salvar transação: ${error.message}`);
+    return data;
+  }
+
+  // Parcelado → uma linha por mês, cada uma com o valor da parcela
+  const rows = [];
+  for (let i = 0; i < installments; i++) {
+    const d = new Date(startDate);
+    d.setMonth(d.getMonth() + i);
+    rows.push({
       user_id: userId,
-      amount: parsed.amount,
-      description: parsed.description,
+      amount: perAmount,
+      description: `${parsed.description} (${i + 1}/${installments})`,
       category: parsed.category,
       payment_method: parsed.payment_method,
-      installments: parsed.installments || 1,
-      type: parsed.type || 'despesa',
-    })
-    .select()
-    .single();
+      installments,
+      type,
+      date: d.toISOString(),
+    });
+  }
 
+  const { data, error } = await supabase.from('transactions').insert(rows).select();
   if (error) throw new Error(`Erro ao salvar transação: ${error.message}`);
-  return data;
+
+  // Retorna a parcela do mês atual (se houver) para refletir no resumo; senão a 1ª
+  const now = new Date();
+  const current = data.find((t) => {
+    const dt = new Date(t.date);
+    return dt.getFullYear() === now.getFullYear() && dt.getMonth() === now.getMonth();
+  });
+  return current || data[0];
 }
 
 async function updateTransaction(userId, id, fields) {
