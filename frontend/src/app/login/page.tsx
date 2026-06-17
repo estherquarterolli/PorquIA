@@ -6,7 +6,7 @@ import { ArrowRight, Sparkles, TrendingUp, Bot, ShieldCheck } from 'lucide-react
 import { useAuth } from '@/lib/auth-context';
 
 const HIGHLIGHTS = [
-  { Icon: Bot, title: 'IA que entende português', desc: 'Apenas mande uma mensagem no Telegram: “café 5 reais”. Pronto! Registrado.' },
+  { Icon: Bot, title: 'IA que entende português', desc: 'Apenas mande uma mensagem no Telegram: "café 5 reais". Pronto! Registrado.' },
   { Icon: TrendingUp, title: 'Painel inteligente', desc: 'Veja suas receitas, despesas, orçamentos e tendências em um só lugar.' },
   { Icon: ShieldCheck, title: 'Seguro e privado', desc: 'Autentique com Google. Seus dados são seus. Sem rastreamento.' },
 ];
@@ -26,8 +26,8 @@ export default function LoginPage() {
     setError(null);
     try {
       await signInWithGoogle();
-    } catch {
-      setError('Erro ao fazer login. Tente novamente.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao fazer login. Tente novamente.');
       setSigningIn(false);
     }
   };
@@ -93,7 +93,7 @@ export default function LoginPage() {
             <div className="text-center mb-8">
               <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Bem-vindo ao PorquIA</h1>
               <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">
-                Seu asistente financeiro baseado em IA. Comece agora com um clique.
+                Seu assistente financeiro baseado em IA. Comece agora com um clique.
               </p>
             </div>
 
