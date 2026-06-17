@@ -38,6 +38,11 @@ app.use(
       if (!origin || allowedOrigins.includes('*') || allowedOrigins.includes(normalize(origin))) {
         return cb(null, true);
       }
+      // Rede de segurança: libera qualquer deploy do projeto no Render
+      // (assim funciona mesmo se CORS_ORIGIN estiver com valor errado/desatualizado).
+      if (/\.onrender\.com$/.test(normalize(origin))) {
+        return cb(null, true);
+      }
       console.warn(`⚠️  CORS bloqueou origem: ${origin}. Permitidas: ${allowedOrigins.join(', ')}`);
       return cb(null, false);
     },
