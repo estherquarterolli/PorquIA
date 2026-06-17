@@ -1,8 +1,6 @@
 @import url('https://rsms.me/inter/inter.css');
-
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@config "../../tailwind.config.ts";
 
 :root {
   --background: #ffffff;
@@ -98,6 +96,15 @@ h1, h2, h3, h4, h5, h6 {
 
 .animate-fade-in-up {
   animation: fadeInUp 0.6s ease-out;
+}
+
+@keyframes slideIn {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+.animate-slide-in {
+  animation: slideIn 0.25s ease-out;
 }
 
 /* Glassmorphism utilities */
