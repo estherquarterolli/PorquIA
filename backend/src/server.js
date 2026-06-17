@@ -50,6 +50,18 @@ app.use(
 );
 app.use(express.json());
 
+// ── Telegram bot ────────────────────────────────────────────────
+// No Render (free) usamos WEBHOOK: o Telegram chama nosso backend
+// (e isso acorda o serviço). Localmente caímos no long polling.
+const bot = process.env.DISABLE_TELEGRAM === 'true' ? null : createBot();
+const TELEGRAM_HOOK_PATH = '/telegram-webhook';
+const telegramDomain = process.env.RENDER_EXTERNAL_URL || process.env.PUBLIC_URL;
+
+if (bot && telegramDomain) {
+  // Registra o handler do webhook antes das rotas/erro
+  app.use(bot.webhookCallback(TELEGRAM_HOOK_PATH));
+}
+
 // Sprint 12 — health aprimorado
 app.get('/health', async (req, res) => {
   try {
@@ -87,21 +99,28 @@ app.use((err, req, res, _next) => {
 app.listen(PORT, () => {
   console.log(`🚀 Server rodando em http://localhost:${PORT}`);
 
-  if (process.env.DISABLE_TELEGRAM === 'true') {
-    console.log('⏸️  Bot Telegram desativado (DISABLE_TELEGRAM=true)');
+  if (!bot) {
+    console.log('⏸️  Bot Telegram desativado');
     return;
   }
 
-  const bot = createBot();
-  if (bot) {
-    // bot.launch() rejeita se não conseguir conectar à API do Telegram
-    // (ex.: proxy corporativo com inspeção SSL). Isso NÃO pode derrubar a API.
-    bot
-      .launch({ dropPendingUpdates: true })
-      .then(() => console.log('🤖 Bot Telegram iniciado (long polling)'))
-      .catch((err) => {
-        console.warn('⚠️  Bot Telegram não pôde iniciar:', err.message);
-        console.warn('   A API REST continua funcionando normalmente.');
+  if (telegramDomain) {
+    // Produção (Render): configura o webhook
+    const url = `${telegramDomain}${TELEGRAM_HOOK_PATH}`;
+    bot.telegram
+      .setWebhook(url, { drop_pending_updates: true })
+      .then(() => console.log(`🤖 Webhook do Telegram configurado: ${url}`))
+      .catch((err) => console.warn('⚠️  Falha ao configurar webhook:', err.message));
+  } else {
+    // Local: long polling (precisa remover qualquer webhook antigo antes)
+    bot.telegram
+      .deleteWebhook({ drop_pending_updates: true })
+      .catch(() => {})
+      .finally(() => {
+        bot
+          .launch({ dropPendingUpdates: true })
+          .then(() => console.log('🤖 Bot Telegram iniciado (long polling)'))
+          .catch((err) => console.warn('⚠️  Bot Telegram não pôde iniciar:', err.message));
       });
     process.once('SIGINT', () => bot.stop('SIGINT'));
     process.once('SIGTERM', () => bot.stop('SIGTERM'));
