@@ -188,7 +188,7 @@ Value: 8314446542:AAHlaswDXeUB5GVw48I4W863KOVoU3e39eE
 #### Variável 2:
 ```
 Key: OPENAI_API_KEY
-Value: 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
+Value: SUA_OPENAI_API_KEY
 
 [Add]
 ```
@@ -204,7 +204,7 @@ Value: https://tedalkhkzfrcaoaboccr.supabase.co
 #### Variável 4:
 ```
 Key: SUPABASE_KEY
-Value: sb_secret_-M-GaP56DXeqKfC7L6H_fw_kJM9m_Pi
+Value: SUA_SUPABASE_KEY
 
 [Add]
 ```
