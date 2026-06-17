@@ -1,16 +1,13 @@
-const axios = require('axios');
+const app = require('../config/firebase-admin');
 const { findOrCreateUserByTelegramId, findOrCreateUserByGoogleId } = require('../services/transactionService');
 
 async function verifyFirebaseToken(idToken) {
-  const apiKey = process.env.FIREBASE_API_KEY;
-  if (!apiKey) throw new Error('FIREBASE_API_KEY não configurado');
-
-  const { data } = await axios.post(
-    `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${apiKey}`,
-    { idToken }
-  );
-
-  return data.users[0]; // { localId, email, displayName, ... }
+  if (!app) {
+    throw new Error('Firebase Admin não disponível');
+  }
+  const { getAuth } = require('firebase-admin/auth');
+  const decoded = await getAuth(app).verifyIdToken(idToken);
+  return { localId: decoded.uid, email: decoded.email };
 }
 
 async function authMiddleware(req, res, next) {
@@ -20,9 +17,14 @@ async function authMiddleware(req, res, next) {
 
     if (authHeader?.startsWith('Bearer ')) {
       const token = authHeader.split(' ')[1];
-      const firebaseUser = await verifyFirebaseToken(token);
-      req.userId = await findOrCreateUserByGoogleId(firebaseUser.localId, firebaseUser.email);
-      return next();
+      try {
+        const firebaseUser = await verifyFirebaseToken(token);
+        req.userId = await findOrCreateUserByGoogleId(firebaseUser.localId, firebaseUser.email);
+        return next();
+      } catch (err) {
+        console.error('Erro ao verificar token Firebase:', err.message);
+        return res.status(401).json({ error: 'Token inválido ou expirado' });
+      }
     }
 
     if (chatId) {
@@ -33,8 +35,8 @@ async function authMiddleware(req, res, next) {
 
     return res.status(401).json({ error: 'Autenticação necessária' });
   } catch (err) {
-    console.error('Erro no auth:', err?.response?.data || err.message);
-    res.status(401).json({ error: 'Token inválido ou expirado' });
+    console.error('Erro no auth middleware:', err.message);
+    res.status(401).json({ error: 'Erro de autenticação' });
   }
 }
 

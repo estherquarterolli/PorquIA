@@ -8,7 +8,7 @@ export function useTransactions() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetch = useCallback(async () => {
+  const fetchTransactions = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -45,7 +45,7 @@ export function useTransactions() {
     }
   }, []);
 
-  return { transactions, loading, error, fetch, create, remove };
+  return { transactions, loading, error, fetchTransactions, create, remove };
 }
 
 export function useSummary() {
@@ -53,7 +53,7 @@ export function useSummary() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetch = useCallback(async () => {
+  const fetchSummary = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -66,7 +66,7 @@ export function useSummary() {
     }
   }, []);
 
-  return { summary, loading, error, fetch };
+  return { summary, loading, error, fetchSummary };
 }
 
 export function useBudgets() {
@@ -74,7 +74,7 @@ export function useBudgets() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetch = useCallback(async () => {
+  const fetchBudgets = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -122,5 +122,5 @@ export function useBudgets() {
     }
   }, []);
 
-  return { budgets, loading, error, fetch, create, update, remove };
+  return { budgets, loading, error, fetchBudgets, create, update, remove };
 }

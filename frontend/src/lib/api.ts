@@ -1,4 +1,5 @@
 import { auth } from './firebase';
+import { signOut } from 'firebase/auth';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
@@ -95,6 +96,12 @@ class ApiClient {
     }
 
     const response = await fetch(`${API_URL}${endpoint}`, options);
+
+    if (response.status === 401) {
+      await signOut(auth);
+      if (typeof window !== 'undefined') window.location.href = '/login';
+      throw new Error('Sessão expirada. Faça login novamente.');
+    }
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));

@@ -9,14 +9,15 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading) {
-      router.push(user ? '/dashboard' : '/login');
-    }
+    if (!loading) router.push(user ? '/dashboard' : '/login');
   }, [user, loading, router]);
 
   return (
-    <div className="flex-1 flex items-center justify-center min-h-screen">
-      <p className="text-zinc-500">Carregando...</p>
+    <div className="min-h-screen grid place-items-center">
+      <div className="relative w-14 h-14">
+        <div className="absolute inset-0 rounded-full brand-gradient opacity-70 blur-lg animate-pulse" />
+        <div className="absolute inset-0 rounded-full border-[3px] border-brand-500/20 border-t-brand-500 animate-spin" />
+      </div>
     </div>
   );
 }
