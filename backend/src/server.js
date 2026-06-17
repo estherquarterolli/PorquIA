@@ -24,7 +24,25 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(cors({ origin: process.env.CORS_ORIGIN?.split(',') || '*' }));
+// CORS tolerante: normaliza barra final / espaços e aceita múltiplas origens.
+const normalize = (o) => o.trim().replace(/\/+$/, '');
+const allowedOrigins = (process.env.CORS_ORIGIN || '*')
+  .split(',')
+  .map(normalize)
+  .filter(Boolean);
+
+app.use(
+  cors({
+    origin(origin, cb) {
+      // Sem origin = curl/health/server-to-server → libera
+      if (!origin || allowedOrigins.includes('*') || allowedOrigins.includes(normalize(origin))) {
+        return cb(null, true);
+      }
+      console.warn(`⚠️  CORS bloqueou origem: ${origin}. Permitidas: ${allowedOrigins.join(', ')}`);
+      return cb(null, false);
+    },
+  })
+);
 app.use(express.json());
 
 // Sprint 12 — health aprimorado
