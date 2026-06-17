@@ -1,6 +1,25 @@
 const OpenAI = require('openai');
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+// Suporta Groq (gratuito, API compatível com OpenAI) ou OpenAI.
+// Se GROQ_API_KEY estiver definida, usa Groq; senão cai pro OpenAI.
+const useGroq = !!process.env.GROQ_API_KEY;
+const apiKey = process.env.GROQ_API_KEY || process.env.OPENAI_API_KEY;
+
+const MODEL =
+  process.env.AI_MODEL || (useGroq ? 'llama-3.3-70b-versatile' : 'gpt-4o-mini');
+
+// Cria o cliente sob demanda — evita derrubar o servidor na importação
+// caso nenhuma chave esteja configurada.
+let _client;
+function getClient() {
+  if (!_client) {
+    _client = new OpenAI({
+      apiKey,
+      baseURL: useGroq ? 'https://api.groq.com/openai/v1' : undefined,
+    });
+  }
+  return _client;
+}
 
 const SYSTEM_PROMPT = `Você é um parser financeiro. Analise mensagens em português e extraia dados de transações financeiras.
 
@@ -23,12 +42,12 @@ Exemplos:
 Se não conseguir identificar uma transação financeira, retorne: {"error": "Não entendi a transação. Tente: 'gastei 50 no mercado' ou 'paguei 1200 de aluguel'"}`;
 
 async function parseTransaction(message) {
-  if (!process.env.OPENAI_API_KEY) {
-    throw new Error('OPENAI_API_KEY não configurado no servidor');
+  if (!apiKey) {
+    throw new Error('Nenhuma chave de IA configurada (defina GROQ_API_KEY no servidor)');
   }
 
-  const response = await openai.chat.completions.create({
-    model: 'gpt-4o-mini',
+  const response = await getClient().chat.completions.create({
+    model: MODEL,
     messages: [
       { role: 'system', content: SYSTEM_PROMPT },
       { role: 'user', content: message },
