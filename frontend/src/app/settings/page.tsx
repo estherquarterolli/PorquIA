@@ -3,13 +3,14 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { api } from '@/lib/api';
-import { Send, LogOut } from 'lucide-react';
+import { Send, LogOut, CheckCircle2, XCircle } from 'lucide-react';
 
 export default function SettingsPage() {
   const { user, logout } = useAuth();
   const [telegramId, setTelegramId] = useState('');
   const [linking, setLinking] = useState(false);
   const [linkedChatId, setLinkedChatId] = useState<string | null>(null);
+  const [modal, setModal] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   useEffect(() => {
     api.getUserProfile().then(p => { if (p.telegram_chat_id) setLinkedChatId(p.telegram_chat_id); }).catch(() => {});
@@ -19,11 +20,13 @@ export default function SettingsPage() {
     e.preventDefault();
     setLinking(true);
     try {
-      await api.linkTelegram(telegramId.trim());
-      setLinkedChatId(telegramId.trim());
+      const id = telegramId.trim();
+      await api.linkTelegram(id);
+      setLinkedChatId(id);
       setTelegramId('');
+      setModal({ type: 'success', message: 'Telegram conectado com sucesso! Agora é só mandar seus gastos pelo bot. 🎉' });
     } catch (err) {
-      alert('Erro ao vincular');
+      setModal({ type: 'error', message: err instanceof Error ? err.message : 'Não foi possível vincular o Telegram.' });
     } finally {
       setLinking(false);
     }
@@ -106,6 +109,47 @@ export default function SettingsPage() {
           Sair da Conta
         </button>
       </div>
+
+      {/* Popup de sucesso / erro */}
+      {modal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in-up"
+          onClick={() => setModal(null)}
+        >
+          <div
+            className="w-full max-w-sm rounded-3xl bg-white dark:bg-zinc-900 p-8 shadow-2xl text-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              className={`w-16 h-16 mx-auto rounded-2xl flex items-center justify-center mb-5 ${
+                modal.type === 'success'
+                  ? 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-500'
+                  : 'bg-rose-100 dark:bg-rose-950/40 text-rose-500'
+              }`}
+            >
+              {modal.type === 'success' ? (
+                <CheckCircle2 className="w-9 h-9" />
+              ) : (
+                <XCircle className="w-9 h-9" />
+              )}
+            </div>
+            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
+              {modal.type === 'success' ? 'Tudo certo!' : 'Ops...'}
+            </h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">{modal.message}</p>
+            <button
+              onClick={() => setModal(null)}
+              className={`w-full py-3 rounded-xl font-bold text-white transition-all active:scale-[0.98] ${
+                modal.type === 'success'
+                  ? 'bg-gradient-to-r from-fuchsia-600 to-pink-600 shadow-lg shadow-pink-600/30'
+                  : 'bg-gradient-to-r from-rose-500 to-red-500 shadow-lg shadow-red-500/30'
+              }`}
+            >
+              {modal.type === 'success' ? 'Continuar' : 'Entendi'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

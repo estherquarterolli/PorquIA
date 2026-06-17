@@ -114,9 +114,30 @@ async function getUserProfile(userId) {
 }
 
 async function linkTelegramToUser(userId, telegramChatId) {
+  const chatId = String(telegramChatId);
+
+  // O bot pode ter criado uma conta "só Telegram" com esse chat id.
+  // Como telegram_chat_id é único, precisamos mesclar essa conta na atual
+  // antes de vincular — senão o update viola a constraint de unicidade.
+  const { data: tgUser } = await supabase
+    .from('users')
+    .select('id')
+    .eq('telegram_chat_id', chatId)
+    .maybeSingle();
+
+  if (tgUser && tgUser.id !== userId) {
+    // Move os dados da conta do Telegram para a conta atual (Google)
+    await supabase.from('transactions').update({ user_id: userId }).eq('user_id', tgUser.id);
+    await supabase.from('budgets').update({ user_id: userId }).eq('user_id', tgUser.id);
+    // Remove a conta órfã para liberar o chat id
+    await supabase.from('users').delete().eq('id', tgUser.id);
+  } else if (tgUser && tgUser.id === userId) {
+    return; // já está vinculado a esta conta
+  }
+
   const { error } = await supabase
     .from('users')
-    .update({ telegram_chat_id: String(telegramChatId) })
+    .update({ telegram_chat_id: chatId })
     .eq('id', userId);
 
   if (error) throw new Error(`Erro ao vincular Telegram: ${error.message}`);
