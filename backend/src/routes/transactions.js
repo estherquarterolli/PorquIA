@@ -1,7 +1,7 @@
 const express = require('express');
 const supabase = require('../config/supabase');
 const { parseTransaction } = require('../services/aiParser');
-const { createTransaction, getSummary, getLastTransactions, getMonthlyHistory } = require('../services/transactionService');
+const { createTransaction, updateTransaction, getSummary, getLastTransactions, getMonthlyHistory } = require('../services/transactionService');
 
 const router = express.Router();
 
@@ -64,6 +64,23 @@ router.post('/', async (req, res) => {
     console.error('Erro POST /transactions:', err);
     const detail = err?.response?.data?.error?.message || err?.message || 'erro desconhecido';
     res.status(500).json({ error: `Erro ao criar transação: ${detail}` });
+  }
+});
+
+router.put('/:id', async (req, res) => {
+  try {
+    const { amount, description, category, type, payment_method } = req.body;
+    const data = await updateTransaction(req.userId, req.params.id, {
+      amount,
+      description,
+      category,
+      type,
+      payment_method,
+    });
+    res.json({ data });
+  } catch (err) {
+    console.error('Erro PUT /transactions/:id:', err);
+    res.status(500).json({ error: err.message });
   }
 });
 

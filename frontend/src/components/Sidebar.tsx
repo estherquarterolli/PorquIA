@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
+import { useProfile } from '@/lib/profile-context';
 import { UserAvatar } from '@/components/UserAvatar';
 import {
   LayoutDashboard,
@@ -31,6 +32,7 @@ const LINKS = [
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const { telegramConnected } = useProfile();
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -81,18 +83,20 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         </div>
       </nav>
 
-      {/* Telegram promo */}
-      <div className="px-4 pb-4">
-        <div className="rounded-2xl p-4 bg-gradient-to-br from-fuchsia-500 to-pink-500 text-white shadow-lg shadow-pink-500/20">
-          <div className="flex items-center gap-2 mb-1">
-            <Send className="w-4 h-4" />
-            <p className="text-sm font-bold">Registre gastos pelo Telegram</p>
+      {/* Telegram promo — some quando já conectado */}
+      {!telegramConnected && (
+        <div className="px-4 pb-4">
+          <div className="rounded-2xl p-4 bg-gradient-to-br from-fuchsia-500 to-pink-500 text-white shadow-lg shadow-pink-500/20">
+            <div className="flex items-center gap-2 mb-1">
+              <Send className="w-4 h-4" />
+              <p className="text-sm font-bold">Registre gastos pelo Telegram</p>
+            </div>
+            <p className="text-xs text-white/80 leading-snug">
+              &quot;gastei 50 no mercado&quot; e a IA cuida do resto.
+            </p>
           </div>
-          <p className="text-xs text-white/80 leading-snug">
-            &quot;gastei 50 no mercado&quot; e a IA cuida do resto.
-          </p>
         </div>
-      </div>
+      )}
 
       {/* Theme toggle */}
       {mounted && (

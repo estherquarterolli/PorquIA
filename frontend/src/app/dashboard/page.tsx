@@ -12,6 +12,7 @@ import {
   Wallet,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
+import { useProfile } from '@/lib/profile-context';
 import { useSummary } from '@/lib/hooks';
 
 function greeting() {
@@ -31,8 +32,10 @@ const monthLabel = () =>
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const { telegramConnected } = useProfile();
   const { summary, fetch } = useSummary();
-  const [showBanner, setShowBanner] = useState(true);
+  const [dismissed, setDismissed] = useState(false);
+  const showBanner = !telegramConnected && !dismissed;
 
   useEffect(() => {
     fetch();
@@ -82,7 +85,7 @@ export default function DashboardPage() {
             <p className="text-xs text-white/70 font-medium">✓ Fácil · ✓ Rápido · ✓ Inteligente</p>
             <div className="flex gap-3">
               <button
-                onClick={() => setShowBanner(false)}
+                onClick={() => setDismissed(true)}
                 className="px-5 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 text-sm font-semibold transition-colors"
               >
                 Depois

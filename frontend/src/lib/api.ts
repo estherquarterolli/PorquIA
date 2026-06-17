@@ -112,6 +112,13 @@ class ApiClient {
     return this.request('POST', '/api/transactions', { message });
   }
 
+  async updateTransaction(
+    id: string,
+    fields: { amount?: number; description?: string; category?: string; type?: 'despesa' | 'receita' }
+  ): Promise<{ data: Transaction }> {
+    return this.request('PUT', `/api/transactions/${id}`, fields);
+  }
+
   async deleteTransaction(id: string): Promise<{ data: Transaction }> {
     return this.request('DELETE', `/api/transactions/${id}`);
   }

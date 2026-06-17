@@ -63,6 +63,30 @@ async function createTransaction(userId, parsed) {
   return data;
 }
 
+async function updateTransaction(userId, id, fields) {
+  const allowed = {};
+  if (fields.amount !== undefined) allowed.amount = fields.amount;
+  if (fields.description !== undefined) allowed.description = fields.description;
+  if (fields.category !== undefined) allowed.category = fields.category;
+  if (fields.type !== undefined) allowed.type = fields.type;
+  if (fields.payment_method !== undefined) allowed.payment_method = fields.payment_method;
+
+  if (Object.keys(allowed).length === 0) {
+    throw new Error('Nenhum campo para atualizar');
+  }
+
+  const { data, error } = await supabase
+    .from('transactions')
+    .update(allowed)
+    .eq('id', id)
+    .eq('user_id', userId)
+    .select()
+    .single();
+
+  if (error || !data) throw new Error(error?.message || 'Transação não encontrada');
+  return data;
+}
+
 async function getSummary(userId) {
   const startOfMonth = new Date();
   startOfMonth.setDate(1);
@@ -338,4 +362,4 @@ async function getMonthlyHistory(userId, months = 6) {
   }));
 }
 
-module.exports = { findOrCreateUserByGoogleId, findOrCreateUserByTelegramId, createTransaction, getSummary, getLastTransactions, getMonthlyHistory, getBudgetStatus, getInvestmentSummary, detectSubscriptions, getUserProfile, linkTelegramToUser };
+module.exports = { findOrCreateUserByGoogleId, findOrCreateUserByTelegramId, createTransaction, updateTransaction, getSummary, getLastTransactions, getMonthlyHistory, getBudgetStatus, getInvestmentSummary, detectSubscriptions, getUserProfile, linkTelegramToUser };

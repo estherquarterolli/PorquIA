@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
+import { useProfile } from '@/lib/profile-context';
 import { api } from '@/lib/api';
 import { Send, LogOut, CheckCircle2, XCircle } from 'lucide-react';
 
 export default function SettingsPage() {
   const { user, logout } = useAuth();
+  const { refresh: refreshProfile } = useProfile();
   const [telegramId, setTelegramId] = useState('');
   const [linking, setLinking] = useState(false);
   const [linkedChatId, setLinkedChatId] = useState<string | null>(null);
@@ -24,6 +26,7 @@ export default function SettingsPage() {
       await api.linkTelegram(id);
       setLinkedChatId(id);
       setTelegramId('');
+      await refreshProfile();
       setModal({ type: 'success', message: 'Telegram conectado com sucesso! Agora é só mandar seus gastos pelo bot. 🎉' });
     } catch (err) {
       setModal({ type: 'error', message: err instanceof Error ? err.message : 'Não foi possível vincular o Telegram.' });

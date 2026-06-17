@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AuthProvider } from "@/lib/auth-context";
+import { ProfileProvider } from "@/lib/profile-context";
 import { AppShell } from "@/components/AppShell";
 import "./globals.css";
 
@@ -35,7 +36,9 @@ export default function RootLayout({
       <body className="min-h-full transition-colors duration-300">
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
           <AuthProvider>
-            <AppShell>{children}</AppShell>
+            <ProfileProvider>
+              <AppShell>{children}</AppShell>
+            </ProfileProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

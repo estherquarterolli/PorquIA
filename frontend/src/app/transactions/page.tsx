@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useTransactions } from '@/lib/hooks';
 import { Transaction } from '@/lib/api';
-import { Download, Trash2, TrendingDown, TrendingUp } from 'lucide-react';
+import { Download, Trash2, TrendingDown, TrendingUp, Pencil, X } from 'lucide-react';
 
 function brl(v: number) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
@@ -51,7 +51,8 @@ function getMonthOptions() {
 }
 
 export default function TransactionsPage() {
-  const { transactions, loading, fetch, create, remove } = useTransactions();
+  const { transactions, loading, fetch, create, update, remove } = useTransactions();
+  const [editing, setEditing] = useState<Transaction | null>(null);
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -98,6 +99,11 @@ export default function TransactionsPage() {
   async function handleDelete(id: string) {
     if (!confirm('Deletar transação?')) return;
     await remove(id).catch(() => {});
+  }
+
+  async function handleSaveEdit(id: string, fields: { description: string; amount: number; type: 'despesa' | 'receita' }) {
+    await update(id, fields);
+    setEditing(null);
   }
 
   return (
@@ -203,8 +209,16 @@ export default function TransactionsPage() {
                     {tx.type === 'receita' ? '+' : '-'}{brl(tx.amount)}
                   </p>
                   <button
+                    onClick={() => setEditing(tx)}
+                    className="p-2 text-slate-400 hover:text-fuchsia-600 dark:hover:text-fuchsia-400 transition-colors opacity-0 group-hover:opacity-100"
+                    title="Editar"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  <button
                     onClick={() => handleDelete(tx.id)}
                     className="p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
+                    title="Deletar"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -213,6 +227,116 @@ export default function TransactionsPage() {
             </div>
           )}
         </div>
+      </div>
+
+      {editing && (
+        <EditModal
+          tx={editing}
+          onClose={() => setEditing(null)}
+          onSave={handleSaveEdit}
+        />
+      )}
+    </div>
+  );
+}
+
+function EditModal({
+  tx,
+  onClose,
+  onSave,
+}: {
+  tx: Transaction;
+  onClose: () => void;
+  onSave: (id: string, fields: { description: string; amount: number; type: 'despesa' | 'receita' }) => Promise<void>;
+}) {
+  const [description, setDescription] = useState(tx.description);
+  const [amount, setAmount] = useState(String(tx.amount));
+  const [type, setType] = useState<'despesa' | 'receita'>(tx.type);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    const value = parseFloat(amount.replace(',', '.'));
+    if (!description.trim() || isNaN(value) || value <= 0) {
+      setError('Preencha um nome e um valor válido.');
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      await onSave(tx.id, { description: description.trim(), amount: value, type });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao salvar.');
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in-up"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-sm rounded-3xl bg-white dark:bg-zinc-900 p-6 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="text-lg font-bold text-slate-900 dark:text-white">Editar transação</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-white">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <form onSubmit={submit} className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Nome</label>
+            <input
+              type="text"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-fuchsia-500 text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Valor (R$)</label>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-fuchsia-500 text-sm"
+            />
+          </div>
+          <div className="flex gap-2">
+            {(['despesa', 'receita'] as const).map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setType(t)}
+                className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all capitalize ${
+                  type === t
+                    ? t === 'despesa'
+                      ? 'bg-rose-500 text-white'
+                      : 'bg-emerald-500 text-white'
+                    : 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-slate-400'
+                }`}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
+
+          {error && <p className="text-sm text-rose-500">{error}</p>}
+
+          <button
+            type="submit"
+            disabled={saving}
+            className="w-full py-3 rounded-xl font-bold text-white bg-gradient-to-r from-fuchsia-600 to-pink-600 shadow-lg shadow-pink-600/30 disabled:opacity-60 transition-all active:scale-[0.98]"
+          >
+            {saving ? 'Salvando...' : 'Salvar alterações'}
+          </button>
+        </form>
       </div>
     </div>
   );

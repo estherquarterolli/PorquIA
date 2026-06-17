@@ -41,11 +41,16 @@ export default function BudgetsPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!category || !limit) return;
+    const cat = category.trim().toLowerCase();
+    if (!cat || !limit) return;
+    if (usedCategories.has(cat)) {
+      setSubmitError('Já existe um orçamento para essa categoria.');
+      return;
+    }
     try {
       setIsSubmitting(true);
       setSubmitError(null);
-      await create(category, parseFloat(limit));
+      await create(cat, parseFloat(limit));
       setCategory(''); setLimit('');
       loadStatus();
     } catch (err) {
@@ -60,8 +65,8 @@ export default function BudgetsPage() {
     loadStatus();
   }
 
-  const usedCategories = new Set(budgets.map((b) => b.category));
-  const availableCategories = CATEGORIES.filter((c) => !usedCategories.has(c));
+  const usedCategories = new Set(budgets.map((b) => b.category.toLowerCase()));
+  const suggestions = CATEGORIES.filter((c) => !usedCategories.has(c));
   const alerts = budgetStatus.filter((b) => b.status !== 'ok');
 
   return (
@@ -94,17 +99,20 @@ export default function BudgetsPage() {
           <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-5">Adicionar Orçamento</h3>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <select
+              <input
+                type="text"
+                list="budget-categories"
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                className="px-4 py-3 border border-slate-200/50 dark:border-slate-600/50 rounded-xl bg-white/50 dark:bg-slate-700/30 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 backdrop-blur-sm"
-                disabled={isSubmitting || availableCategories.length === 0}
-              >
-                <option value="">Categoria...</option>
-                {availableCategories.map((cat) => (
+                placeholder="Categoria (escolha ou crie a sua)"
+                className="px-4 py-3 border border-slate-200/50 dark:border-slate-600/50 rounded-xl bg-white/50 dark:bg-slate-700/30 text-slate-900 dark:text-white placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 backdrop-blur-sm"
+                disabled={isSubmitting}
+              />
+              <datalist id="budget-categories">
+                {suggestions.map((cat) => (
                   <option key={cat} value={cat}>{cat.charAt(0).toUpperCase() + cat.slice(1)}</option>
                 ))}
-              </select>
+              </datalist>
               <input
                 type="number"
                 value={limit}

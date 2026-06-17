@@ -34,6 +34,21 @@ export function useTransactions() {
     }
   }, []);
 
+  const update = useCallback(
+    async (id: string, fields: { amount?: number; description?: string; category?: string; type?: 'despesa' | 'receita' }) => {
+      try {
+        setError(null);
+        const result = await api.updateTransaction(id, fields);
+        setTransactions((prev) => prev.map((t) => (t.id === id ? result.data : t)));
+        return result.data;
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Erro ao atualizar transação');
+        throw err;
+      }
+    },
+    []
+  );
+
   const remove = useCallback(async (id: string) => {
     try {
       setError(null);
@@ -45,7 +60,7 @@ export function useTransactions() {
     }
   }, []);
 
-  return { transactions, loading, error, fetch, create, remove };
+  return { transactions, loading, error, fetch, create, update, remove };
 }
 
 export function useSummary() {
