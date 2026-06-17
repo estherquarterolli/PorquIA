@@ -40,13 +40,24 @@ function createBot() {
   bot.start((ctx) => {
     ctx.reply(
       `👋 Olá! Sou o *PorquIA*, seu assistente financeiro.\n\n` +
-        `Basta me mandar uma mensagem descrevendo seu gasto ou receita:\n` +
+        `🔑 *Seu Chat ID é:* \`${ctx.chat.id}\`\n` +
+        `Copie esse número e cole no app em *Configurações → Telegram* para conectar sua conta.\n\n` +
+        `Depois de conectar, basta me mandar uma mensagem descrevendo seu gasto ou receita:\n` +
         `• _"gastei 50 no mercado"_\n` +
         `• _"paguei 1200 de aluguel no pix"_\n` +
         `• _"recebi salário 5000"_\n\n` +
         `Comandos disponíveis:\n` +
+        `/id — mostra seu Chat ID novamente\n` +
         `/resumo — resumo do mês atual\n` +
         `/ultimas — últimas 5 transações`,
+      { parse_mode: 'Markdown' }
+    );
+  });
+
+  bot.command('id', (ctx) => {
+    ctx.reply(
+      `🔑 *Seu Chat ID é:* \`${ctx.chat.id}\`\n\n` +
+        `Cole esse número no app em *Configurações → Telegram*.`,
       { parse_mode: 'Markdown' }
     );
   });
