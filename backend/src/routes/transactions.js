@@ -62,7 +62,8 @@ router.post('/', async (req, res) => {
     res.status(201).json({ data: transaction });
   } catch (err) {
     console.error('Erro POST /transactions:', err);
-    res.status(500).json({ error: 'Erro ao criar transação' });
+    const detail = err?.response?.data?.error?.message || err?.message || 'erro desconhecido';
+    res.status(500).json({ error: `Erro ao criar transação: ${detail}` });
   }
 });
 
