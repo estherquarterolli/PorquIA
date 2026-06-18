@@ -18,12 +18,16 @@ import {
   Sun,
   Moon,
   Send,
+  CalendarCheck,
+  CalendarClock,
 } from 'lucide-react';
 
 const LINKS = [
   { href: '/dashboard',     Icon: LayoutDashboard, label: 'Dashboard' },
   { href: '/transactions',  Icon: ArrowLeftRight,  label: 'Transações' },
   { href: '/budgets',       Icon: Wallet,          label: 'Orçamentos' },
+  { href: '/recurring',     Icon: CalendarCheck,   label: 'Gastos Fixos' },
+  { href: '/upcoming',      Icon: CalendarClock,   label: 'Próximos Meses' },
   { href: '/investments',   Icon: TrendingUp,      label: 'Investimentos' },
   { href: '/subscriptions', Icon: Repeat,          label: 'Assinaturas' },
   { href: '/settings',      Icon: Settings,        label: 'Configurações' },

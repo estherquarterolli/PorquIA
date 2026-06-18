@@ -10,6 +10,7 @@ const budgetsRouter = require('./routes/budgets');
 const investmentsRouter = require('./routes/investments');
 const subscriptionsRouter = require('./routes/subscriptions');
 const usersRouter = require('./routes/users');
+const recurringRouter = require('./routes/recurring');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -89,6 +90,7 @@ app.use('/api/budgets',       authMiddleware, budgetsRouter);
 app.use('/api/investments',   authMiddleware, investmentsRouter);
 app.use('/api/subscriptions', authMiddleware, subscriptionsRouter);
 app.use('/api/users',         authMiddleware, usersRouter);
+app.use('/api/recurring',     authMiddleware, recurringRouter);
 
 // Sprint 12 — error handler global
 app.use((err, req, res, _next) => {

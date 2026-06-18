@@ -68,6 +68,25 @@ export interface InvestmentSummary {
   ultimosAportes: Pick<Transaction, 'id' | 'amount' | 'description' | 'date'>[];
 }
 
+export interface RecurringExpense {
+  description: string;
+  category: string;
+  amount: number;
+  is_fixed: boolean;
+  months_count: number;
+  future_count: number;
+  last_charge: string;
+  active: boolean;
+}
+
+export interface UpcomingMonth {
+  month: string;
+  label: string;
+  despesas: number;
+  receitas: number;
+  items: Pick<Transaction, 'id' | 'amount' | 'description' | 'category' | 'type' | 'date'>[];
+}
+
 class ApiClient {
   private async getToken(): Promise<string> {
     const user = auth.currentUser;
@@ -165,6 +184,22 @@ class ApiClient {
 
   async linkTelegram(telegramChatId: string): Promise<void> {
     return this.request('POST', '/api/users/link-telegram', { telegram_chat_id: telegramChatId });
+  }
+
+  async getRecurring(): Promise<{ data: RecurringExpense[] }> {
+    return this.request('GET', '/api/recurring');
+  }
+
+  async createFixedExpense(body: { description: string; amount: number; category?: string; months?: number }): Promise<{ created: number }> {
+    return this.request('POST', '/api/recurring', body);
+  }
+
+  async endRecurring(description: string, from_month: string): Promise<{ deleted: number }> {
+    return this.request('POST', '/api/recurring/end', { description, from_month });
+  }
+
+  async getUpcoming(months = 6): Promise<{ data: UpcomingMonth[] }> {
+    return this.request('GET', `/api/recurring/upcoming?months=${months}`);
   }
 }
 

@@ -419,4 +419,145 @@ async function getMonthlyHistory(userId, months = 6) {
   }));
 }
 
-module.exports = { findOrCreateUserByGoogleId, findOrCreateUserByTelegramId, createTransaction, updateTransaction, getSummary, getLastTransactions, getMonthlyHistory, getBudgetStatus, getInvestmentSummary, detectSubscriptions, getUserProfile, linkTelegramToUser };
+// ── Gastos fixos / recorrentes ──────────────────────────────────
+// Cria N meses de uma despesa fixa (mesma descrição todo mês).
+async function createFixedExpense(userId, { description, amount, category, months = 12 }) {
+  const value = Number(amount);
+  const n = Math.min(60, Math.max(1, parseInt(months) || 12));
+  const start = new Date();
+  start.setDate(1);
+  start.setHours(12, 0, 0, 0);
+
+  const rows = [];
+  for (let i = 0; i < n; i++) {
+    const d = new Date(start);
+    d.setMonth(d.getMonth() + i);
+    rows.push({
+      user_id: userId,
+      amount: value,
+      description,
+      category: category || 'outros',
+      payment_method: 'fixo',
+      installments: 1,
+      type: 'despesa',
+      date: d.toISOString(),
+    });
+  }
+
+  const { data, error } = await supabase.from('transactions').insert(rows).select();
+  if (error) throw new Error(`Erro ao criar gasto fixo: ${error.message}`);
+  return { created: data.length };
+}
+
+// Lista recorrentes: grupos (descrição+valor) que aparecem em >= 2 meses.
+async function getRecurring(userId) {
+  const since = new Date();
+  since.setFullYear(since.getFullYear() - 1);
+
+  const { data, error } = await supabase
+    .from('transactions')
+    .select('amount, description, category, date, payment_method')
+    .eq('user_id', userId)
+    .eq('type', 'despesa')
+    .gte('date', since.toISOString())
+    .order('date', { ascending: true });
+
+  if (error) throw new Error(error.message);
+
+  const groups = {};
+  for (const tx of data) {
+    const key = `${tx.description.toLowerCase().trim()}||${Math.round(Number(tx.amount))}`;
+    if (!groups[key]) {
+      groups[key] = { description: tx.description, category: tx.category, amount: Number(tx.amount), is_fixed: tx.payment_method === 'fixo', dates: [] };
+    }
+    groups[key].dates.push(new Date(tx.date));
+  }
+
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  return Object.values(groups)
+    .map((g) => {
+      const monthsSet = new Set(g.dates.map((d) => `${d.getFullYear()}-${d.getMonth()}`));
+      const future = g.dates.filter((d) => d >= startOfMonth);
+      g.dates.sort((a, b) => a - b);
+      return {
+        description: g.description,
+        category: g.category,
+        amount: parseFloat(g.amount.toFixed(2)),
+        is_fixed: g.is_fixed,
+        months_count: monthsSet.size,
+        future_count: future.length,
+        last_charge: g.dates[g.dates.length - 1].toISOString(),
+        active: future.length > 0,
+      };
+    })
+    .filter((r) => r.months_count >= 2 || r.is_fixed)
+    .sort((a, b) => Number(b.active) - Number(a.active) || b.amount - a.amount);
+}
+
+// Encerra um recorrente: apaga ocorrências a partir de um mês (YYYY-MM).
+async function endRecurring(userId, description, fromMonth) {
+  let from;
+  if (fromMonth && /^\d{4}-\d{2}$/.test(fromMonth)) {
+    const [y, m] = fromMonth.split('-').map(Number);
+    from = new Date(y, m - 1, 1, 0, 0, 0);
+  } else {
+    const now = new Date();
+    from = new Date(now.getFullYear(), now.getMonth(), 1);
+  }
+
+  const { data, error } = await supabase
+    .from('transactions')
+    .delete()
+    .eq('user_id', userId)
+    .eq('description', description)
+    .gte('date', from.toISOString())
+    .select();
+
+  if (error) throw new Error(`Erro ao encerrar: ${error.message}`);
+  return { deleted: data.length };
+}
+
+// Próximos meses: agrupa transações futuras (após o mês atual) por mês.
+async function getUpcoming(userId, months = 6) {
+  const n = Math.min(24, Math.max(1, parseInt(months) || 6));
+  const now = new Date();
+  const startNext = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const end = new Date(now.getFullYear(), now.getMonth() + 1 + n, 1);
+
+  const { data, error } = await supabase
+    .from('transactions')
+    .select('id, amount, description, category, type, date')
+    .eq('user_id', userId)
+    .gte('date', startNext.toISOString())
+    .lt('date', end.toISOString())
+    .order('date', { ascending: true });
+
+  if (error) throw new Error(error.message);
+
+  const map = {};
+  for (let i = 0; i < n; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() + 1 + i, 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const label = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+    map[key] = { month: key, label: label.charAt(0).toUpperCase() + label.slice(1), despesas: 0, receitas: 0, items: [] };
+  }
+
+  for (const tx of data) {
+    const d = new Date(tx.date);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    if (!map[key]) continue;
+    if (tx.type === 'despesa') map[key].despesas += Number(tx.amount);
+    else map[key].receitas += Number(tx.amount);
+    map[key].items.push(tx);
+  }
+
+  return Object.values(map).map((m) => ({
+    ...m,
+    despesas: parseFloat(m.despesas.toFixed(2)),
+    receitas: parseFloat(m.receitas.toFixed(2)),
+  }));
+}
+
+module.exports = { findOrCreateUserByGoogleId, findOrCreateUserByTelegramId, createTransaction, updateTransaction, getSummary, getLastTransactions, getMonthlyHistory, getBudgetStatus, getInvestmentSummary, detectSubscriptions, getUserProfile, linkTelegramToUser, createFixedExpense, getRecurring, endRecurring, getUpcoming };
