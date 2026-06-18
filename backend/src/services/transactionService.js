@@ -132,16 +132,23 @@ async function updateTransaction(userId, id, fields) {
   return data;
 }
 
+// Retorna [início do mês, início do próximo mês) para limitar consultas ao mês.
+function currentMonthRange() {
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
+  const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1, 0, 0, 0);
+  return { startOfMonth, startOfNextMonth };
+}
+
 async function getSummary(userId) {
-  const startOfMonth = new Date();
-  startOfMonth.setDate(1);
-  startOfMonth.setHours(0, 0, 0, 0);
+  const { startOfMonth, startOfNextMonth } = currentMonthRange();
 
   const { data, error } = await supabase
     .from('transactions')
     .select('amount, category, type')
     .eq('user_id', userId)
-    .gte('date', startOfMonth.toISOString());
+    .gte('date', startOfMonth.toISOString())
+    .lt('date', startOfNextMonth.toISOString());
 
   if (error) throw new Error(`Erro ao buscar resumo: ${error.message}`);
 
@@ -298,9 +305,15 @@ async function getInvestmentSummary(userId) {
 
   if (error) throw new Error(error.message);
 
-  const totalAno = data.reduce((sum, tx) => sum + Number(tx.amount), 0);
+  const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const totalAno = data
+    .filter((tx) => new Date(tx.date) < startOfNextMonth)
+    .reduce((sum, tx) => sum + Number(tx.amount), 0);
   const totalMes = data
-    .filter((tx) => new Date(tx.date) >= startOfMonth)
+    .filter((tx) => {
+      const d = new Date(tx.date);
+      return d >= startOfMonth && d < startOfNextMonth;
+    })
     .reduce((sum, tx) => sum + Number(tx.amount), 0);
 
   const monthMap = {};
@@ -338,9 +351,7 @@ async function getInvestmentSummary(userId) {
 }
 
 async function getBudgetStatus(userId) {
-  const startOfMonth = new Date();
-  startOfMonth.setDate(1);
-  startOfMonth.setHours(0, 0, 0, 0);
+  const { startOfMonth, startOfNextMonth } = currentMonthRange();
 
   const [budgetsResult, txResult] = await Promise.all([
     supabase.from('budgets').select('*').eq('user_id', userId).order('category'),
@@ -349,7 +360,8 @@ async function getBudgetStatus(userId) {
       .select('amount, category')
       .eq('user_id', userId)
       .eq('type', 'despesa')
-      .gte('date', startOfMonth.toISOString()),
+      .gte('date', startOfMonth.toISOString())
+      .lt('date', startOfNextMonth.toISOString()),
   ]);
 
   if (budgetsResult.error) throw new Error(budgetsResult.error.message);
