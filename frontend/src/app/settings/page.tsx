@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { useProfile } from '@/lib/profile-context';
 import { api } from '@/lib/api';
-import { Send, LogOut, CheckCircle2, XCircle } from 'lucide-react';
+import { Send, LogOut, CheckCircle2, XCircle, AlertTriangle, Trash2 } from 'lucide-react';
 
 export default function SettingsPage() {
   const { user, logout } = useAuth();
@@ -13,6 +13,9 @@ export default function SettingsPage() {
   const [linking, setLinking] = useState(false);
   const [linkedChatId, setLinkedChatId] = useState<string | null>(null);
   const [modal, setModal] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [resetOpen, setResetOpen] = useState(false);
+  const [resetConfirmed, setResetConfirmed] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   useEffect(() => {
     api.getUserProfile().then(p => { if (p.telegram_chat_id) setLinkedChatId(p.telegram_chat_id); }).catch(() => {});
@@ -32,6 +35,25 @@ export default function SettingsPage() {
       setModal({ type: 'error', message: err instanceof Error ? err.message : 'Não foi possível vincular o Telegram.' });
     } finally {
       setLinking(false);
+    }
+  }
+
+  async function handleReset() {
+    setResetting(true);
+    try {
+      const r = await api.resetFinances();
+      setResetOpen(false);
+      setResetConfirmed(false);
+      setModal({
+        type: 'success',
+        message: `Finanças zeradas! ${r.transactions} transações e ${r.budgets} orçamentos foram apagados. A página vai recarregar.`,
+      });
+      setTimeout(() => window.location.reload(), 1800);
+    } catch (err) {
+      setResetOpen(false);
+      setModal({ type: 'error', message: err instanceof Error ? err.message : 'Erro ao zerar finanças.' });
+    } finally {
+      setResetting(false);
     }
   }
 
@@ -103,15 +125,91 @@ export default function SettingsPage() {
           )}
         </div>
 
+        {/* Zona de Perigo */}
+        <div className="bg-rose-50/60 dark:bg-rose-950/20 backdrop-blur-xl rounded-2xl p-6 border-2 border-rose-200 dark:border-rose-900/50">
+          <div className="flex items-center gap-2 mb-2">
+            <AlertTriangle className="w-5 h-5 text-rose-500" />
+            <h3 className="text-lg font-bold text-rose-700 dark:text-rose-400">Zona de Perigo</h3>
+          </div>
+          <p className="text-sm text-rose-600/80 dark:text-rose-300/70 mb-4">
+            Apague permanentemente todas as suas transações e orçamentos. Útil para começar do zero. Esta ação <strong>não pode ser desfeita</strong>.
+          </p>
+          <button
+            onClick={() => { setResetConfirmed(false); setResetOpen(true); }}
+            className="flex items-center gap-2 px-5 py-3 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl transition-all active:scale-[0.98]"
+          >
+            <Trash2 className="w-5 h-5" />
+            Zerar finanças
+          </button>
+        </div>
+
         {/* Logout */}
         <button
           onClick={logout}
-          className="w-full px-6 py-4 bg-red-50 dark:bg-red-950/30 border-2 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 font-bold rounded-2xl hover:bg-red-100 dark:hover:bg-red-900/50 transition-all flex items-center justify-center gap-2 text-base"
+          className="w-full px-6 py-4 bg-slate-50 dark:bg-zinc-900 border-2 border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-slate-300 font-bold rounded-2xl hover:bg-slate-100 dark:hover:bg-zinc-800 transition-all flex items-center justify-center gap-2 text-base"
         >
           <LogOut className="w-5 h-5" />
           Sair da Conta
         </button>
       </div>
+
+      {/* Popup CHAMATIVO de confirmação de zerar finanças */}
+      {resetOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-rose-950/40 backdrop-blur-sm animate-fade-in-up"
+          onClick={() => !resetting && setResetOpen(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-3xl bg-white dark:bg-zinc-900 shadow-2xl overflow-hidden border-2 border-rose-300 dark:border-rose-800"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Faixa de alerta */}
+            <div className="bg-gradient-to-r from-rose-500 to-red-600 px-6 py-5 text-center">
+              <AlertTriangle className="w-12 h-12 mx-auto text-white animate-pulse" />
+              <h3 className="text-2xl font-extrabold text-white mt-2">ATENÇÃO!</h3>
+              <p className="text-white/90 text-sm font-semibold">Esta ação é permanente</p>
+            </div>
+
+            <div className="p-6">
+              <p className="text-sm text-slate-700 dark:text-slate-200 mb-4 text-center">
+                Você está prestes a <strong className="text-rose-600 dark:text-rose-400">apagar TODAS</strong> as suas
+                transações, parcelas, gastos fixos e orçamentos.
+                <br />
+                <span className="font-bold">Não dá para desfazer.</span>
+              </p>
+
+              <label className="flex items-start gap-3 p-3 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 cursor-pointer mb-5">
+                <input
+                  type="checkbox"
+                  checked={resetConfirmed}
+                  onChange={(e) => setResetConfirmed(e.target.checked)}
+                  className="mt-0.5 w-5 h-5 accent-rose-600 shrink-0"
+                />
+                <span className="text-sm text-rose-700 dark:text-rose-300 font-medium">
+                  Eu entendo que todos os meus dados financeiros serão apagados para sempre.
+                </span>
+              </label>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setResetOpen(false)}
+                  disabled={resetting}
+                  className="flex-1 py-3 rounded-xl font-bold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleReset}
+                  disabled={!resetConfirmed || resetting}
+                  className="flex-1 py-3 rounded-xl font-bold text-white bg-gradient-to-r from-rose-600 to-red-600 shadow-lg shadow-red-600/30 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-[0.98]"
+                >
+                  {resetting ? 'Apagando...' : 'Apagar tudo'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Popup de sucesso / erro */}
       {modal && (

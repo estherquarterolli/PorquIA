@@ -419,6 +419,17 @@ async function getMonthlyHistory(userId, months = 6) {
   }));
 }
 
+// Apaga TODAS as transações e orçamentos do usuário (mantém a conta e o vínculo Telegram).
+async function resetUserFinances(userId) {
+  const tx = await supabase.from('transactions').delete({ count: 'exact' }).eq('user_id', userId);
+  if (tx.error) throw new Error(`Erro ao apagar transações: ${tx.error.message}`);
+
+  const bg = await supabase.from('budgets').delete({ count: 'exact' }).eq('user_id', userId);
+  if (bg.error) throw new Error(`Erro ao apagar orçamentos: ${bg.error.message}`);
+
+  return { transactions: tx.count ?? 0, budgets: bg.count ?? 0 };
+}
+
 // ── Gastos fixos / recorrentes ──────────────────────────────────
 // Cria N meses de uma despesa fixa (mesma descrição todo mês).
 async function createFixedExpense(userId, { description, amount, category, months = 12 }) {
@@ -560,4 +571,4 @@ async function getUpcoming(userId, months = 6) {
   }));
 }
 
-module.exports = { findOrCreateUserByGoogleId, findOrCreateUserByTelegramId, createTransaction, updateTransaction, getSummary, getLastTransactions, getMonthlyHistory, getBudgetStatus, getInvestmentSummary, detectSubscriptions, getUserProfile, linkTelegramToUser, createFixedExpense, getRecurring, endRecurring, getUpcoming };
+module.exports = { findOrCreateUserByGoogleId, findOrCreateUserByTelegramId, createTransaction, updateTransaction, getSummary, getLastTransactions, getMonthlyHistory, getBudgetStatus, getInvestmentSummary, detectSubscriptions, getUserProfile, linkTelegramToUser, createFixedExpense, getRecurring, endRecurring, getUpcoming, resetUserFinances };

@@ -201,6 +201,10 @@ class ApiClient {
   async getUpcoming(months = 6): Promise<{ data: UpcomingMonth[] }> {
     return this.request('GET', `/api/recurring/upcoming?months=${months}`);
   }
+
+  async resetFinances(): Promise<{ transactions: number; budgets: number }> {
+    return this.request('POST', '/api/users/reset');
+  }
 }
 
 export const api = new ApiClient();
