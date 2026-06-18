@@ -21,11 +21,11 @@ export default function InvestmentsPage() {
   const year = new Date().getFullYear();
 
   return (
-    <div className="min-h-screen px-6 lg:px-10 py-10">
-      <div className="max-w-5xl mx-auto space-y-8">
+    <div className="py-2">
+      <div className="max-w-5xl mx-auto space-y-6">
         {/* Header */}
-        <div className="border-b border-slate-200/50 dark:border-slate-700/50 pb-8">
-          <h1 className="text-5xl font-bold text-slate-900 dark:text-white mb-2">Investimentos</h1>
+        <div className="border-b border-slate-200/50 dark:border-slate-700/50 pb-5">
+          <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 dark:text-white mb-1">Investimentos</h1>
           <p className="text-slate-600 dark:text-slate-400 text-base">Aportes em categoria investimento</p>
         </div>
 

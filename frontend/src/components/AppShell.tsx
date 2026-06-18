@@ -5,7 +5,8 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { Sidebar } from './Sidebar';
 import { UserAvatar } from './UserAvatar';
-import { Menu, X, Search, Bell } from 'lucide-react';
+import { NotificationsBell } from './NotificationsBell';
+import { Menu, X, Search } from 'lucide-react';
 
 const PUBLIC_ROUTES = ['/login', '/'];
 
@@ -101,10 +102,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             />
           </div>
 
-          <button className="relative w-10 h-10 rounded-full flex items-center justify-center text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-zinc-900 transition-colors">
-            <Bell className="w-5 h-5" />
-            <span className="absolute top-2 right-2 w-2 h-2 bg-gradient-to-br from-fuchsia-500 to-pink-500 rounded-full ring-2 ring-gray-50 dark:ring-zinc-950" />
-          </button>
+          <NotificationsBell />
 
           <div className="p-0.5 rounded-full bg-gradient-to-br from-fuchsia-500 to-pink-500 shrink-0">
             <span className="block rounded-full ring-2 ring-gray-50 dark:ring-zinc-950">

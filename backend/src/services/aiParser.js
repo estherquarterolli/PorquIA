@@ -67,7 +67,40 @@ async function parseTransaction(message) {
     temperature: 0.1,
   });
 
-  return JSON.parse(response.choices[0].message.content);
+  const parsed = JSON.parse(response.choices[0].message.content);
+  if (parsed.error) return parsed;
+  return enrichInstallments(message, parsed);
+}
+
+const MONTHS = {
+  janeiro: 1, fevereiro: 2, março: 3, marco: 3, abril: 4, maio: 5, junho: 6,
+  julho: 7, agosto: 8, setembro: 9, outubro: 10, novembro: 11, dezembro: 12,
+};
+
+// Reforço determinístico: garante parcelas e mês inicial mesmo que a IA falhe.
+function enrichInstallments(message, parsed) {
+  const text = String(message).toLowerCase();
+
+  // Nº de parcelas: "12x", "12 x", "em 12 vezes", "em 12 parcelas"
+  const mParcelas =
+    text.match(/(\d{1,3})\s*x\b/) ||
+    text.match(/em\s+(\d{1,3})\s*(?:vezes|parcelas)/);
+  if (mParcelas) {
+    const n = parseInt(mParcelas[1], 10);
+    if (n >= 2 && n <= 360) parsed.installments = n;
+  }
+
+  // Mês inicial: "começou em abril de 2026", "a partir de janeiro", "início em março"
+  const mInicio = text.match(
+    /(?:come[çc]ou|come[çc]ando|a partir|in[íi]cio|iniciou|partir)\s*(?:de\s+|em\s+)?(janeiro|fevereiro|mar[çc]o|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)(?:\s+de)?\s*(\d{4})?/
+  );
+  if (mInicio) {
+    const mon = MONTHS[mInicio[1]] || MONTHS[mInicio[1].replace('ç', 'c')];
+    const year = mInicio[2] ? parseInt(mInicio[2], 10) : new Date().getFullYear();
+    if (mon) parsed.start_date = `${year}-${String(mon).padStart(2, '0')}`;
+  }
+
+  return parsed;
 }
 
 module.exports = { parseTransaction };

@@ -71,8 +71,18 @@ export default function TransactionsPage() {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<'all' | 'despesa' | 'receita'>('all');
   const [monthFilter, setMonthFilter] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [paymentFilter, setPaymentFilter] = useState('');
 
   const monthOptions = useMemo(() => buildMonthOptions(transactions), [transactions]);
+  const categoryOptions = useMemo(
+    () => [...new Set(transactions.map((t) => t.category).filter(Boolean))].sort(),
+    [transactions]
+  );
+  const paymentOptions = useMemo(
+    () => [...new Set(transactions.map((t) => t.payment_method).filter(Boolean))].sort(),
+    [transactions]
+  );
 
   useEffect(() => { fetch(); }, [fetch]);
 
@@ -80,6 +90,8 @@ export default function TransactionsPage() {
     return transactions.filter((tx) => {
       if (search && !tx.description.toLowerCase().includes(search.toLowerCase()) && !tx.category.toLowerCase().includes(search.toLowerCase())) return false;
       if (typeFilter !== 'all' && tx.type !== typeFilter) return false;
+      if (categoryFilter && tx.category !== categoryFilter) return false;
+      if (paymentFilter && tx.payment_method !== paymentFilter) return false;
       if (monthFilter) {
         const d = new Date(tx.date);
         const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -87,7 +99,12 @@ export default function TransactionsPage() {
       }
       return true;
     });
-  }, [transactions, search, typeFilter, monthFilter]);
+  }, [transactions, search, typeFilter, categoryFilter, paymentFilter, monthFilter]);
+
+  const PAYMENT_LABEL: Record<string, string> = {
+    pix: 'Pix', cartão_crédito: 'Cartão de crédito', cartão_débito: 'Cartão de débito',
+    dinheiro: 'Dinheiro', transferência: 'Transferência', outro: 'Outro',
+  };
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -119,12 +136,12 @@ export default function TransactionsPage() {
   }
 
   return (
-    <div className="min-h-screen px-6 lg:px-10 py-10">
-      <div className="max-w-5xl mx-auto space-y-8">
+    <div className="py-2">
+      <div className="max-w-5xl mx-auto space-y-6">
         {/* Header */}
-        <div className="border-b border-slate-200/50 dark:border-slate-700/50 pb-8">
-          <h1 className="text-5xl font-bold text-slate-900 dark:text-white mb-2">Transações</h1>
-          <p className="text-slate-600 dark:text-slate-400 text-base">Descreva em linguagem natural — a IA interpreta</p>
+        <div className="border-b border-slate-200/50 dark:border-slate-700/50 pb-5">
+          <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 dark:text-white mb-1">Transações</h1>
+          <p className="text-slate-600 dark:text-slate-400 text-sm">Descreva em linguagem natural — a IA interpreta</p>
         </div>
 
         {/* Input */}
@@ -153,39 +170,61 @@ export default function TransactionsPage() {
         </div>
 
         {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-3">
+        <div className="space-y-3">
           <input
             type="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar..."
-            className="flex-1 px-4 py-2.5 border border-slate-200/50 dark:border-slate-600/50 rounded-xl bg-white/50 dark:bg-slate-800/50 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm backdrop-blur-sm"
+            placeholder="Buscar por descrição ou categoria..."
+            className="w-full px-4 py-2.5 border border-slate-200/50 dark:border-slate-600/50 rounded-xl bg-white/50 dark:bg-slate-800/50 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-fuchsia-500 text-sm backdrop-blur-sm"
           />
-          <select
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value as typeof typeFilter)}
-            className="px-4 py-2.5 border border-slate-200/50 dark:border-slate-600/50 rounded-xl bg-white/50 dark:bg-slate-800/50 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 backdrop-blur-sm"
-          >
-            <option value="all">Todos</option>
-            <option value="despesa">Despesas</option>
-            <option value="receita">Receitas</option>
-          </select>
-          <select
-            value={monthFilter}
-            onChange={(e) => setMonthFilter(e.target.value)}
-            className="px-4 py-2.5 border border-slate-200/50 dark:border-slate-600/50 rounded-xl bg-white/50 dark:bg-slate-800/50 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 backdrop-blur-sm"
-          >
-            {monthOptions.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value as typeof typeFilter)}
+              className="px-3 py-2.5 border border-slate-200/50 dark:border-slate-600/50 rounded-xl bg-white/50 dark:bg-slate-800/50 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-fuchsia-500 backdrop-blur-sm"
+            >
+              <option value="all">Todos os tipos</option>
+              <option value="despesa">Despesas</option>
+              <option value="receita">Receitas</option>
+            </select>
+            <select
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              className="px-3 py-2.5 border border-slate-200/50 dark:border-slate-600/50 rounded-xl bg-white/50 dark:bg-slate-800/50 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-fuchsia-500 backdrop-blur-sm capitalize"
+            >
+              <option value="">Todas categorias</option>
+              {categoryOptions.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+            <select
+              value={paymentFilter}
+              onChange={(e) => setPaymentFilter(e.target.value)}
+              className="px-3 py-2.5 border border-slate-200/50 dark:border-slate-600/50 rounded-xl bg-white/50 dark:bg-slate-800/50 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-fuchsia-500 backdrop-blur-sm"
+            >
+              <option value="">Todos pagamentos</option>
+              {paymentOptions.map((p) => (
+                <option key={p} value={p}>{PAYMENT_LABEL[p] || p}</option>
+              ))}
+            </select>
+            <select
+              value={monthFilter}
+              onChange={(e) => setMonthFilter(e.target.value)}
+              className="px-3 py-2.5 border border-slate-200/50 dark:border-slate-600/50 rounded-xl bg-white/50 dark:bg-slate-800/50 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-fuchsia-500 backdrop-blur-sm"
+            >
+              {monthOptions.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </div>
           {transactions.length > 0 && (
             <button
               onClick={() => exportCSV(filtered)}
-              className="flex items-center gap-2 px-4 py-2.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border border-blue-200/50 dark:border-blue-800/50 rounded-xl font-semibold text-sm hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-all"
+              className="flex items-center gap-2 px-4 py-2 bg-fuchsia-50 dark:bg-fuchsia-950/30 text-fuchsia-600 dark:text-fuchsia-400 border border-fuchsia-200/50 dark:border-fuchsia-800/50 rounded-xl font-semibold text-sm hover:bg-fuchsia-100 dark:hover:bg-fuchsia-900/40 transition-all"
             >
               <Download className="w-4 h-4" />
-              CSV
+              Exportar CSV
             </button>
           )}
         </div>

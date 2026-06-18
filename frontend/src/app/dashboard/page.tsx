@@ -47,6 +47,10 @@ export default function DashboardPage() {
   const despesas = summary?.totalDespesas ?? 0;
   const saldo = summary?.saldo ?? 0;
   const poupanca = receitas > 0 ? Math.round(((receitas - despesas) / receitas) * 100) : 0;
+  const saldoPositivo = saldo >= 0;
+  const saldoGradient = saldoPositivo
+    ? 'from-emerald-500 to-teal-600 shadow-emerald-500/30'
+    : 'from-rose-500 to-red-600 shadow-red-500/30';
 
   return (
     <div className="max-w-6xl mx-auto space-y-8">
@@ -118,11 +122,11 @@ export default function DashboardPage() {
 
       {/* Stat cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-        {/* Saldo — destaque */}
-        <div className="sm:col-span-2 lg:col-span-1 lg:row-span-2 rounded-3xl p-6 bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-xl shadow-purple-500/30 flex flex-col">
+        {/* Saldo — destaque (verde positivo / vermelho negativo) */}
+        <div className={`sm:col-span-2 lg:col-span-1 lg:row-span-2 rounded-3xl p-6 bg-gradient-to-br ${saldoGradient} text-white shadow-xl flex flex-col`}>
           <p className="text-white/70 text-sm font-medium">Saldo do mês</p>
           <p className="text-white/60 text-xs mb-4">{monthLabel()}</p>
-          <p className="text-4xl font-bold tracking-tight">{brl(saldo)}</p>
+          <p className="text-3xl sm:text-4xl font-bold tracking-tight">{brl(saldo)}</p>
           <div className="mt-auto pt-6 grid grid-cols-2 gap-3">
             <div className="rounded-2xl bg-white/10 backdrop-blur p-3">
               <p className="text-xs text-white/70 flex items-center gap-1">
@@ -161,7 +165,7 @@ export default function DashboardPage() {
           title="Saldo do mês"
           value={brl(saldo)}
           Icon={Wallet}
-          tint="violet"
+          tint={saldoPositivo ? 'emerald' : 'rose'}
         />
       </div>
 
