@@ -50,12 +50,12 @@ TELEGRAM_BOT_TOKEN=123456789:ABCdefGHIJKlmnoPQRstuvWXYZabcDEFg
 1. Ir para: https://platform.openai.com/account/api-keys
 2. Login com conta Google/Email
 3. Clicar em "Create new secret key"
-4. Copiar a chave (começa com `SUA_OPENAI_API_KEY`)
+4. Copiar a chave (começa com `sk-proj-`)
 5. **Guardar em local seguro** (após sair da página, não consegue ver novamente)
 
 **Valor esperado:**
 ```env
-OPENAI_API_KEY=SUA_OPENAI_API_KEY
+OPENAI_API_KEY=sk-proj-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
 **Segurança:** 🔴 **NUNCA** compartilhar | Usar chaves separadas para dev/prod
