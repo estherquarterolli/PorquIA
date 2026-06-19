@@ -8,7 +8,7 @@ export function useTransactions() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchTransactions = useCallback(async () => {
+  const fetch = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -21,10 +21,10 @@ export function useTransactions() {
     }
   }, []);
 
-  const create = useCallback(async (message: string) => {
+  const create = useCallback(async (message: string, installments?: number, current_installment?: number) => {
     try {
       setError(null);
-      const result = await api.createTransaction(message);
+      const result = await api.createTransaction(message, installments, current_installment);
       setTransactions((prev) => [result.data, ...prev]);
       return result.data;
     } catch (err) {
@@ -33,6 +33,21 @@ export function useTransactions() {
       throw err;
     }
   }, []);
+
+  const update = useCallback(
+    async (id: string, fields: { amount?: number; description?: string; category?: string; type?: 'despesa' | 'receita' }) => {
+      try {
+        setError(null);
+        const result = await api.updateTransaction(id, fields);
+        setTransactions((prev) => prev.map((t) => (t.id === id ? result.data : t)));
+        return result.data;
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Erro ao atualizar transação');
+        throw err;
+      }
+    },
+    []
+  );
 
   const remove = useCallback(async (id: string) => {
     try {
@@ -45,7 +60,7 @@ export function useTransactions() {
     }
   }, []);
 
-  return { transactions, loading, error, fetchTransactions, create, remove };
+  return { transactions, loading, error, fetch, create, update, remove };
 }
 
 export function useSummary() {
@@ -53,7 +68,7 @@ export function useSummary() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchSummary = useCallback(async () => {
+  const fetch = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -66,7 +81,7 @@ export function useSummary() {
     }
   }, []);
 
-  return { summary, loading, error, fetchSummary };
+  return { summary, loading, error, fetch };
 }
 
 export function useBudgets() {
@@ -74,7 +89,7 @@ export function useBudgets() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchBudgets = useCallback(async () => {
+  const fetch = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -122,5 +137,5 @@ export function useBudgets() {
     }
   }, []);
 
-  return { budgets, loading, error, fetchBudgets, create, update, remove };
+  return { budgets, loading, error, fetch, create, update, remove };
 }

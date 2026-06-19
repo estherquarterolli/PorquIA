@@ -2,124 +2,138 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, useState } from 'react';
 import { useTheme } from 'next-themes';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
+import { useProfile } from '@/lib/profile-context';
+import { UserAvatar } from '@/components/UserAvatar';
 import {
   LayoutDashboard,
   ArrowLeftRight,
   Wallet,
-  LineChart,
-  RotateCcw,
+  TrendingUp,
+  Repeat,
   Settings,
   LogOut,
   Sun,
   Moon,
-  Sparkles,
+  Send,
+  CalendarCheck,
+  CalendarClock,
+  Landmark,
 } from 'lucide-react';
-import { Avatar } from './Avatar';
 
-export const NAV_LINKS = [
+const LINKS = [
   { href: '/dashboard',     Icon: LayoutDashboard, label: 'Dashboard' },
   { href: '/transactions',  Icon: ArrowLeftRight,  label: 'Transações' },
   { href: '/budgets',       Icon: Wallet,          label: 'Orçamentos' },
-  { href: '/investments',   Icon: LineChart,       label: 'Investimentos' },
-  { href: '/subscriptions', Icon: RotateCcw,       label: 'Assinaturas' },
+  { href: '/recurring',     Icon: CalendarCheck,   label: 'Gastos Fixos' },
+  { href: '/upcoming',      Icon: CalendarClock,   label: 'Próximos Meses' },
+  { href: '/investments',   Icon: TrendingUp,      label: 'Investimentos' },
+  { href: '/banks',         Icon: Landmark,        label: 'Importar Extrato' },
+  { href: '/subscriptions', Icon: Repeat,          label: 'Assinaturas' },
   { href: '/settings',      Icon: Settings,        label: 'Configurações' },
 ];
 
-export function Sidebar() {
+export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const { telegramConnected } = useProfile();
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  return (
-    <aside className="h-full flex flex-col bg-white/55 dark:bg-[#140f24]/70 backdrop-blur-2xl border-r border-white/60 dark:border-white/5">
-      {/* Marca */}
-      <div className="px-6 pt-7 pb-6">
-        <Link href="/dashboard" className="flex items-center gap-3 group">
-          <div className="relative w-11 h-11 rounded-2xl brand-gradient flex items-center justify-center text-white font-bold text-xl shadow-[0_8px_24px_-6px_rgba(168,85,247,0.7)] transition-transform group-hover:scale-105">
-            P
-            <Sparkles className="absolute -top-1 -right-1 w-4 h-4 text-fuchsia-300" strokeWidth={2.5} />
-          </div>
-          <div className="leading-tight">
-            <p className="font-bold text-[15px] text-slate-900 dark:text-white">PorquIA</p>
-            <p className="text-[11px] font-medium text-brand-500 dark:text-brand-300">Finanças com IA</p>
-          </div>
-        </Link>
-      </div>
+  const isDark = theme === 'dark';
 
-      {/* Navegação */}
-      <nav className="flex-1 px-4 space-y-1.5 overflow-y-auto">
-        <p className="px-3 mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Menu</p>
-        {NAV_LINKS.map(({ href, Icon, label }) => {
-          const active = pathname === href || (href !== '/dashboard' && pathname.startsWith(href));
-          return (
-            <Link
-              key={href}
-              href={href}
-              className={`relative flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 group ${
-                active
-                  ? 'text-white'
-                  : 'text-slate-500 dark:text-slate-400 hover:text-brand-700 dark:hover:text-white hover:bg-brand-50/70 dark:hover:bg-white/5'
-              }`}
-            >
-              {active && (
-                <span className="absolute inset-0 rounded-xl brand-gradient shadow-[0_8px_22px_-8px_rgba(168,85,247,0.8)]" />
-              )}
-              <Icon className="relative w-[18px] h-[18px] shrink-0" strokeWidth={active ? 2.4 : 2} />
-              <span className="relative">{label}</span>
-            </Link>
-          );
-        })}
+  return (
+    <aside className="h-full w-full bg-white dark:bg-zinc-950 border-r border-slate-100 dark:border-zinc-900 flex flex-col">
+      {/* Logo */}
+      <Link
+        href="/dashboard"
+        onClick={onNavigate}
+        className="flex items-center gap-3 px-6 py-6"
+      >
+        <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-fuchsia-500 via-pink-500 to-rose-500 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-pink-500/30">
+          P
+        </div>
+        <div>
+          <p className="font-bold text-slate-900 dark:text-white text-base leading-tight">PorquIA</p>
+          <p className="text-xs text-slate-400 dark:text-slate-500 font-medium">Finanças com IA</p>
+        </div>
+      </Link>
+
+      {/* Nav */}
+      <nav className="flex-1 px-4 overflow-y-auto">
+        <p className="px-3 mt-2 mb-3 text-[10px] font-bold tracking-widest text-slate-400 dark:text-slate-600">
+          MENU
+        </p>
+        <div className="space-y-1">
+          {LINKS.map(({ href, Icon, label }) => {
+            const active = pathname === href;
+            return (
+              <Link
+                key={href}
+                href={href}
+                onClick={onNavigate}
+                className={`flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
+                  active
+                    ? 'bg-gradient-to-r from-fuchsia-600 to-pink-600 text-white shadow-lg shadow-pink-600/30'
+                    : 'text-slate-500 dark:text-slate-400 hover:bg-pink-50 dark:hover:bg-zinc-900 hover:text-pink-600 dark:hover:text-pink-400'
+                }`}
+              >
+                <Icon className="w-5 h-5" strokeWidth={2} />
+                <span>{label}</span>
+              </Link>
+            );
+          })}
+        </div>
       </nav>
 
-      {/* Card promo IA */}
-      <div className="px-4 pb-4">
-        <div className="relative overflow-hidden rounded-2xl p-4 brand-gradient text-white shadow-[0_12px_30px_-12px_rgba(168,85,247,0.7)]">
-          <div className="absolute -right-6 -top-6 w-20 h-20 bg-white/20 rounded-full blur-2xl" />
-          <p className="relative text-xs font-semibold leading-snug">
-            Registre gastos pelo Telegram
-          </p>
-          <p className="relative text-[11px] text-white/75 mt-1 leading-snug">
-            “gastei 50 no mercado” e a IA cuida do resto.
-          </p>
-        </div>
-      </div>
-
-      {/* Rodapé: tema + usuário */}
-      <div className="px-4 pb-5 pt-3 border-t border-white/50 dark:border-white/5 space-y-3">
-        {mounted && (
-          <button
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-slate-500 dark:text-slate-400 hover:bg-brand-50/70 dark:hover:bg-white/5 transition-colors"
-          >
-            {theme === 'dark' ? <Sun className="w-[18px] h-[18px]" /> : <Moon className="w-[18px] h-[18px]" />}
-            {theme === 'dark' ? 'Modo claro' : 'Modo escuro'}
-          </button>
-        )}
-
-        {user && (
-          <div className="flex items-center gap-3 px-1.5">
-            <Avatar src={user.photoURL} name={user.displayName || user.email || ''} size="md" />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">
-                {user.displayName || 'Usuário'}
-              </p>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{user.email}</p>
+      {/* Telegram promo — some quando já conectado */}
+      {!telegramConnected && (
+        <div className="px-4 pb-4">
+          <div className="rounded-2xl p-4 bg-gradient-to-br from-fuchsia-500 to-pink-500 text-white shadow-lg shadow-pink-500/20">
+            <div className="flex items-center gap-2 mb-1">
+              <Send className="w-4 h-4" />
+              <p className="text-sm font-bold">Registre gastos pelo Telegram</p>
             </div>
-            <button
-              onClick={logout}
-              title="Sair"
-              className="p-2 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors"
-            >
-              <LogOut className="w-[18px] h-[18px]" />
-            </button>
+            <p className="text-xs text-white/80 leading-snug">
+              &quot;gastei 50 no mercado&quot; e a IA cuida do resto.
+            </p>
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {/* Theme toggle */}
+      {mounted && (
+        <button
+          onClick={() => setTheme(isDark ? 'light' : 'dark')}
+          className="flex items-center gap-3 px-7 py-3 text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-pink-600 dark:hover:text-pink-400 transition-colors"
+        >
+          {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+          {isDark ? 'Modo claro' : 'Modo escuro'}
+        </button>
+      )}
+
+      {/* User */}
+      {user && (
+        <div className="flex items-center gap-3 px-5 py-4 border-t border-slate-100 dark:border-zinc-900">
+          <UserAvatar user={user} size={36} />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">
+              {user.displayName?.split(' ')[0] || 'Usuário'}
+            </p>
+            <p className="text-xs text-slate-400 dark:text-slate-500 truncate">{user.email}</p>
+          </div>
+          <button
+            onClick={logout}
+            title="Sair"
+            className="text-slate-400 hover:text-red-500 transition-colors shrink-0"
+          >
+            <LogOut className="w-5 h-5" />
+          </button>
+        </div>
+      )}
     </aside>
   );
 }

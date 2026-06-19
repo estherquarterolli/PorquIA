@@ -69,6 +69,47 @@ export interface InvestmentSummary {
   ultimosAportes: Pick<Transaction, 'id' | 'amount' | 'description' | 'date'>[];
 }
 
+export interface RecurringExpense {
+  description: string;
+  category: string;
+  amount: number;
+  is_fixed: boolean;
+  months_count: number;
+  future_count: number;
+  last_charge: string;
+  active: boolean;
+}
+
+export interface UpcomingMonth {
+  month: string;
+  label: string;
+  despesas: number;
+  receitas: number;
+  items: Pick<Transaction, 'id' | 'amount' | 'description' | 'category' | 'type' | 'date'>[];
+}
+
+export interface BankProvider {
+  id: string;
+  label: string;
+  real: boolean;
+}
+
+export interface BankConnection {
+  id: string;
+  provider: string;
+  label: string;
+  account_balance: number | null;
+  credit_limit: number | null;
+  credit_used: number | null;
+  last_synced_at: string;
+}
+
+export interface BankConnectResult {
+  connection: BankConnection;
+  imported: number;
+  skipped: number;
+}
+
 class ApiClient {
   private async getToken(): Promise<string> {
     const user = auth.currentUser;
@@ -111,12 +152,19 @@ class ApiClient {
     return response.json();
   }
 
-  async getTransactions(limit = 50): Promise<{ data: Transaction[] }> {
+  async getTransactions(limit = 300): Promise<{ data: Transaction[] }> {
     return this.request('GET', `/api/transactions?limit=${limit}`);
   }
 
   async createTransaction(message: string): Promise<{ data: Transaction }> {
     return this.request('POST', '/api/transactions', { message });
+  }
+
+  async updateTransaction(
+    id: string,
+    fields: { amount?: number; description?: string; category?: string; type?: 'despesa' | 'receita' }
+  ): Promise<{ data: Transaction }> {
+    return this.request('PUT', `/api/transactions/${id}`, fields);
   }
 
   async deleteTransaction(id: string): Promise<{ data: Transaction }> {
@@ -165,6 +213,59 @@ class ApiClient {
 
   async linkTelegram(telegramChatId: string): Promise<void> {
     return this.request('POST', '/api/users/link-telegram', { telegram_chat_id: telegramChatId });
+  }
+
+  async getRecurring(): Promise<{ data: RecurringExpense[] }> {
+    return this.request('GET', '/api/recurring');
+  }
+
+  async createFixedExpense(body: {
+    description: string;
+    amount: number;
+    category?: string;
+    months?: number;
+    recurrence_type?: string;
+    start_date?: string;
+    end_date?: string;
+    occurrences?: number;
+  }): Promise<{ created: number }> {
+    return this.request('POST', '/api/recurring', body);
+  }
+
+  async endRecurring(description: string, from_month: string): Promise<{ deleted: number }> {
+    return this.request('POST', '/api/recurring/end', { description, from_month });
+  }
+
+  async getUpcoming(months = 6): Promise<{ data: UpcomingMonth[] }> {
+    return this.request('GET', `/api/recurring/upcoming?months=${months}`);
+  }
+
+  async resetFinances(): Promise<{ transactions: number; budgets: number }> {
+    return this.request('POST', '/api/users/reset');
+  }
+
+  async getBankProviders(): Promise<{ data: BankProvider[] }> {
+    return this.request('GET', '/api/banks/providers');
+  }
+
+  async getBankConnections(): Promise<{ data: BankConnection[] }> {
+    return this.request('GET', '/api/banks');
+  }
+
+  async connectBank(provider: string, credentials?: Record<string, string>): Promise<BankConnectResult> {
+    return this.request('POST', '/api/banks/connect', { provider, credentials });
+  }
+
+  async syncBank(id: string): Promise<BankConnectResult> {
+    return this.request('POST', `/api/banks/${id}/sync`);
+  }
+
+  async removeBank(id: string): Promise<{ removed: boolean }> {
+    return this.request('DELETE', `/api/banks/${id}`);
+  }
+
+  async importStatement(content: string, filename: string): Promise<{ found: number; imported: number; skipped: number }> {
+    return this.request('POST', '/api/banks/import', { content, filename });
   }
 }
 

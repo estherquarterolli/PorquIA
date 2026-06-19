@@ -1,99 +1,166 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
+import { api } from '@/lib/api';
 import { Sidebar } from './Sidebar';
-import { Topbar } from './Topbar';
-import {
-  LayoutDashboard,
-  ArrowLeftRight,
-  Wallet,
-  LineChart,
-  MoreHorizontal,
-} from 'lucide-react';
+import { UserAvatar } from './UserAvatar';
+import { NotificationsBell } from './NotificationsBell';
+import { Menu, X, Search } from 'lucide-react';
 
-const MOBILE_ITEMS = [
-  { href: '/dashboard',    label: 'Início',     Icon: LayoutDashboard },
-  { href: '/transactions', label: 'Transações', Icon: ArrowLeftRight },
-  { href: '/budgets',      label: 'Orçamentos', Icon: Wallet },
-  { href: '/investments',  label: 'Investir',   Icon: LineChart },
-  { href: '/more',         label: 'Mais',       Icon: MoreHorizontal, match: ['/more', '/subscriptions', '/settings'] },
-];
+// Rotas sem autenticação (renderizadas sem o chrome do app)
+const PUBLIC_ROUTES = ['/login', '/', '/terms'];
+// Rotas que exigem login mas NÃO o chrome do app nem assinatura ativa
+const AUTH_NO_CHROME_ROUTES = ['/paywall', '/checkout/success'];
 
-function MobileNav({ pathname }: { pathname: string }) {
-  return (
-    <nav
-      className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-white/80 dark:bg-[#0b0815]/90 backdrop-blur-2xl border-t border-white/60 dark:border-white/10"
-      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
-    >
-      <div className="flex">
-        {MOBILE_ITEMS.map(({ href, label, Icon, match }) => {
-          const active = match ? match.some((m) => pathname.startsWith(m)) : pathname === href;
-          return (
-            <Link
-              key={href}
-              href={href}
-              className="flex-1 flex flex-col items-center gap-1 pt-2.5 pb-2 text-[10.5px] font-semibold"
-            >
-              <span
-                className={`flex items-center justify-center w-11 h-7 rounded-full transition-all ${
-                  active ? 'brand-gradient text-white shadow-[0_6px_16px_-6px_rgba(168,85,247,0.8)]' : 'text-slate-400 dark:text-slate-500'
-                }`}
-              >
-                <Icon className="w-[18px] h-[18px]" strokeWidth={2.4} />
-              </span>
-              <span className={active ? 'text-brand-600 dark:text-brand-300' : 'text-slate-400 dark:text-slate-500'}>
-                {label}
-              </span>
-            </Link>
-          );
-        })}
-      </div>
-    </nav>
-  );
-}
-
-function FullScreenLoader() {
-  return (
-    <div className="min-h-screen grid place-items-center">
-      <div className="relative w-14 h-14">
-        <div className="absolute inset-0 rounded-full brand-gradient opacity-70 blur-lg animate-pulse" />
-        <div className="absolute inset-0 rounded-full border-[3px] border-brand-500/20 border-t-brand-500 animate-spin" />
-      </div>
-    </div>
-  );
-}
+const TITLES: Record<string, string> = {
+  '/dashboard': 'Dashboard',
+  '/transactions': 'Transações',
+  '/budgets': 'Orçamentos',
+  '/recurring': 'Gastos Fixos',
+  '/upcoming': 'Próximos Meses',
+  '/investments': 'Investimentos',
+  '/banks': 'Importar Extrato',
+  '/subscriptions': 'Assinaturas',
+  '/settings': 'Configurações',
+};
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user, loading } = useAuth();
   const router = useRouter();
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
-  const isPublic = pathname === '/login';
+  const isPublic = PUBLIC_ROUTES.includes(pathname);
+  const isAuthNoChrome = AUTH_NO_CHROME_ROUTES.includes(pathname);
+  const needsPlan = !isPublic && !isAuthNoChrome; // somente as rotas do app
+  const title = TITLES[pathname] ?? 'PorquIA';
+
+  // Gate de assinatura: estados para as rotas do app
+  const [planChecked, setPlanChecked] = useState(false);
+  const [planActive, setPlanActive] = useState(false);
 
   useEffect(() => {
-    if (!loading && !user && !isPublic) router.push('/login');
+    if (!loading && !user && !isPublic) {
+      router.replace('/login');
+    }
   }, [user, loading, isPublic, router]);
 
+  // Verifica assinatura ativa nas rotas do app; sem plano → paywall
+  useEffect(() => {
+    if (loading || !user || !needsPlan) return;
+    let cancelled = false;
+    api
+      .getBillingStatus()
+      .then((s) => {
+        if (cancelled) return;
+        setPlanChecked(true);
+        setPlanActive(s.active);
+        if (!s.active) router.replace('/paywall');
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setPlanChecked(true);
+        router.replace('/paywall');
+      });
+    return () => { cancelled = true; };
+  }, [user, loading, needsPlan, pathname, router]);
+
+  // Fecha o drawer ao trocar de rota
+  useEffect(() => setDrawerOpen(false), [pathname]);
+
   if (isPublic) return <>{children}</>;
-  if (loading || !user) return <FullScreenLoader />;
+
+  if (loading || !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-zinc-950">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-fuchsia-500 via-pink-500 to-rose-500 animate-pulse shadow-lg shadow-pink-500/40" />
+          <p className="text-sm font-medium text-slate-400 dark:text-slate-500">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Rotas autenticadas sem chrome (paywall, checkout): renderiza direto
+  if (isAuthNoChrome) return <>{children}</>;
+
+  // Rotas do app: aguarda confirmação de assinatura ativa
+  if (!planChecked || !planActive) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-zinc-950">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-fuchsia-500 via-pink-500 to-rose-500 animate-pulse shadow-lg shadow-pink-500/40" />
+          <p className="text-sm font-medium text-slate-400 dark:text-slate-500">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen bg-gray-50 dark:bg-zinc-950">
       {/* Sidebar desktop */}
-      <div className="hidden lg:flex lg:flex-col lg:w-72 lg:fixed lg:inset-y-0 z-40">
+      <div className="hidden lg:flex lg:w-64 lg:fixed lg:inset-y-0 z-40">
         <Sidebar />
       </div>
 
-      {/* Conteúdo */}
-      <div className="flex-1 lg:pl-72 flex flex-col min-h-screen">
-        <Topbar />
-        <main className="flex-1 px-4 lg:px-8 py-6 pb-28 lg:pb-10">{children}</main>
-      </div>
+      {/* Drawer mobile */}
+      {drawerOpen && (
+        <div className="lg:hidden fixed inset-0 z-50">
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => setDrawerOpen(false)}
+          />
+          <div className="absolute left-0 top-0 bottom-0 w-72 max-w-[85%] shadow-2xl animate-slide-in">
+            <button
+              onClick={() => setDrawerOpen(false)}
+              className="absolute top-4 right-4 z-10 text-slate-400 hover:text-slate-600 dark:hover:text-white"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <Sidebar onNavigate={() => setDrawerOpen(false)} />
+          </div>
+        </div>
+      )}
 
-      <MobileNav pathname={pathname} />
+      {/* Conteúdo */}
+      <div className="flex-1 lg:pl-64 flex flex-col min-h-screen">
+        {/* Top bar */}
+        <header className="sticky top-0 z-30 flex items-center gap-3 px-4 lg:px-8 h-16 bg-gray-50/80 dark:bg-zinc-950/80 backdrop-blur-xl border-b border-slate-100 dark:border-zinc-900">
+          {/* Hamburger (mobile) */}
+          <button
+            onClick={() => setDrawerOpen(true)}
+            className="lg:hidden w-10 h-10 -ml-1 rounded-xl flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-zinc-900"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+
+          <h2 className="text-lg font-bold text-slate-900 dark:text-white">{title}</h2>
+
+          <div className="flex-1" />
+
+          {/* Search (desktop) */}
+          <div className="relative hidden sm:block">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Buscar..."
+              className="w-40 lg:w-56 pl-9 pr-4 py-2 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-full text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-pink-500 transition-all"
+            />
+          </div>
+
+          <NotificationsBell />
+
+          <div className="p-0.5 rounded-full bg-gradient-to-br from-fuchsia-500 to-pink-500 shrink-0">
+            <span className="block rounded-full ring-2 ring-gray-50 dark:ring-zinc-950">
+              <UserAvatar user={user} size={34} />
+            </span>
+          </div>
+        </header>
+
+        <main className="flex-1 px-4 lg:px-8 py-6">{children}</main>
+      </div>
     </div>
   );
 }

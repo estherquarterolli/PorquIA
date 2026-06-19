@@ -1,119 +1,209 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Wallet, TrendingUp, TrendingDown, PiggyBank } from 'lucide-react';
+import Link from 'next/link';
+import {
+  Send,
+  Zap,
+  ArrowRight,
+  TrendingUp,
+  TrendingDown,
+  PiggyBank,
+  Wallet,
+} from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
-import { useSummary, useBudgets, useTransactions } from '@/lib/hooks';
-import { api, MonthlyData } from '@/lib/api';
-import { BalanceHero } from '@/components/dashboard/BalanceHero';
-import { StatCard } from '@/components/dashboard/StatCard';
-import { IncomeExpenseChart } from '@/components/dashboard/IncomeExpenseChart';
-import { CategoryBreakdown } from '@/components/dashboard/CategoryBreakdown';
-import { BudgetsOverview } from '@/components/dashboard/BudgetsOverview';
-import { RecentTransactions } from '@/components/dashboard/RecentTransactions';
-import { TelegramSetup } from '@/components/dashboard/TelegramSetup';
-import { fmtBRL } from '@/lib/mock';
+import { useProfile } from '@/lib/profile-context';
+import { useSummary } from '@/lib/hooks';
+import { DashboardCharts } from '@/components/dashboard/DashboardCharts';
+import { InsightsCard } from '@/components/dashboard/InsightsCard';
+
+function greeting() {
+  const h = new Date().getHours();
+  if (h < 12) return 'Bom dia';
+  if (h < 18) return 'Boa tarde';
+  return 'Boa noite';
+}
+
+const brl = (v: number) =>
+  v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+const monthLabel = () =>
+  new Date()
+    .toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+    .replace(/^\w/, (c) => c.toUpperCase());
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  const { summary, loading: loadingSummary, fetchSummary } = useSummary();
-  const { budgets, fetchBudgets } = useBudgets();
-  const { transactions, fetchTransactions } = useTransactions();
-  const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
-  const [budgetStatus, setBudgetStatus] = useState<any[]>([]);
+  const { telegramConnected } = useProfile();
+  const { summary, fetch } = useSummary();
+  const [dismissed, setDismissed] = useState(false);
+  const showBanner = !telegramConnected && !dismissed;
 
   useEffect(() => {
-    fetchSummary();
-    fetchBudgets();
-    fetchTransactions();
-    api.getMonthlyData(6).then(setMonthlyData).catch(() => {});
-    api.getBudgetStatus().then(setBudgetStatus).catch(() => {});
-  }, [fetchSummary, fetchBudgets, fetchTransactions]);
+    fetch();
+  }, [fetch]);
 
-  const firstName = (user?.displayName || user?.email?.split('@')[0] || 'por aí').split(' ')[0];
-  const hour = new Date().getHours();
-  const greeting = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite';
-
-  const getTrend = (current: number, previous: number) => {
-    if (!previous) return 0;
-    return Math.round(((current - previous) / previous) * 100);
-  };
-
-  const trends = {
-    receitas: monthlyData.length >= 2 ? getTrend(monthlyData[0]?.receitas || 0, monthlyData[1]?.receitas || 0) : 0,
-    despesas: monthlyData.length >= 2 ? -getTrend(monthlyData[0]?.despesas || 0, monthlyData[1]?.despesas || 0) : 0,
-    saldo: summary ? getTrend(summary.saldo, (monthlyData[1]?.receitas || 0) - (monthlyData[1]?.despesas || 0)) : 0,
-  };
-
-  const sparkData = (v: number) => [
-    { value: v * 0.6 }, { value: v * 0.75 }, { value: v * 0.65 },
-    { value: v * 0.9 }, { value: v * 0.85 }, { value: v * 0.95 },
-    { value: v * 0.88 }, { value: v },
-  ];
-
-  if (loadingSummary) {
-    return (
-      <div className="max-w-7xl mx-auto flex items-center justify-center min-h-[60vh]">
-        <div className="w-10 h-10 rounded-full border-[3px] border-brand-500/25 border-t-brand-500 animate-spin" />
-      </div>
-    );
-  }
-
-  const saldo = summary?.saldo ?? 0;
+  const firstName = user?.displayName?.split(' ')[0] || '';
   const receitas = summary?.totalReceitas ?? 0;
   const despesas = summary?.totalDespesas ?? 0;
-  const taxaPoupanca = receitas ? Math.round(((receitas - despesas) / receitas) * 100) : 0;
+  const saldo = summary?.saldo ?? 0;
+  const poupanca = receitas > 0 ? Math.round(((receitas - despesas) / receitas) * 100) : 0;
+  const saldoPositivo = saldo >= 0;
+  const saldoGradient = saldoPositivo
+    ? 'from-emerald-500 to-teal-600 shadow-emerald-500/30'
+    : 'from-rose-500 to-red-600 shadow-red-500/30';
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
-      {/* Banner Telegram Setup */}
-      <TelegramSetup />
+    <div className="max-w-6xl mx-auto space-y-8">
+      {/* Telegram banner */}
+      {showBanner && (
+        <div className="relative overflow-hidden rounded-3xl p-6 sm:p-8 bg-gradient-to-br from-fuchsia-500 via-pink-500 to-rose-500 text-white shadow-xl shadow-pink-500/30">
+          <Zap className="absolute top-6 right-6 w-6 h-6 text-white/70" />
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center shrink-0">
+              <Send className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-xl sm:text-2xl font-bold">Conecte ao Telegram!</h3>
+              <p className="text-white/80 text-sm">Registre gastos por mensagens em 30 segundos</p>
+            </div>
+          </div>
 
-      <div className="animate-fade-in-up">
-        <h1 className="text-2xl lg:text-3xl font-bold text-slate-900 dark:text-white">
-          {greeting}, <span className="gradient-text">{firstName}</span> 👋
+          <div className="mt-6 rounded-2xl bg-white/10 backdrop-blur p-4 sm:p-5 space-y-3">
+            {[
+              ['Abra o Telegram', 'Procure por @porquia_bot'],
+              ['Mande /start', 'O bot vai responder com seu Chat ID'],
+              ['Cole o Chat ID aqui', 'Clique em "Conectar agora" abaixo'],
+            ].map(([t, d], i) => (
+              <div key={i} className="flex items-center gap-3">
+                <span className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-xs font-bold shrink-0">
+                  {i + 1}
+                </span>
+                <div>
+                  <p className="text-sm font-semibold">{t}</p>
+                  <p className="text-xs text-white/70">{d}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <p className="text-xs text-white/70 font-medium">✓ Fácil · ✓ Rápido · ✓ Inteligente</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDismissed(true)}
+                className="px-5 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 text-sm font-semibold transition-colors"
+              >
+                Depois
+              </button>
+              <Link
+                href="/settings"
+                className="px-5 py-2.5 rounded-xl bg-white text-pink-600 hover:bg-white/90 text-sm font-bold flex items-center gap-2 transition-colors"
+              >
+                <Zap className="w-4 h-4" /> Conectar Agora <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Greeting */}
+      <div>
+        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white">
+          {greeting()},{' '}
+          <span className="bg-gradient-to-r from-fuchsia-600 to-pink-600 dark:from-fuchsia-400 dark:to-pink-400 bg-clip-text text-transparent">
+            {firstName}
+          </span>{' '}
+          👋
         </h1>
         <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-          Aqui está o resumo das suas finanças.
+          Aqui está o resumo das suas finanças
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 stagger">
-        <div className="lg:col-span-4 lg:row-span-2 min-h-[340px]">
-          <BalanceHero data={summary ?? undefined} trend={trends.saldo} sparkData={sparkData(saldo)} />
+      {/* Stat cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        {/* Saldo — destaque (verde positivo / vermelho negativo) */}
+        <div className={`sm:col-span-2 lg:col-span-1 lg:row-span-2 rounded-3xl p-6 bg-gradient-to-br ${saldoGradient} text-white shadow-xl flex flex-col`}>
+          <p className="text-white/70 text-sm font-medium">Saldo do mês</p>
+          <p className="text-white/60 text-xs mb-4">{monthLabel()}</p>
+          <p className="text-3xl sm:text-4xl font-bold tracking-tight">{brl(saldo)}</p>
+          <div className="mt-auto pt-6 grid grid-cols-2 gap-3">
+            <div className="rounded-2xl bg-white/10 backdrop-blur p-3">
+              <p className="text-xs text-white/70 flex items-center gap-1">
+                <TrendingUp className="w-3 h-3" /> Receitas
+              </p>
+              <p className="text-sm font-bold mt-1">{brl(receitas)}</p>
+            </div>
+            <div className="rounded-2xl bg-white/10 backdrop-blur p-3">
+              <p className="text-xs text-white/70 flex items-center gap-1">
+                <TrendingDown className="w-3 h-3" /> Despesas
+              </p>
+              <p className="text-sm font-bold mt-1">{brl(despesas)}</p>
+            </div>
+          </div>
         </div>
 
-        <div className="lg:col-span-4">
-          <StatCard label="Receitas do mês" value={fmtBRL(receitas)} trend={trends.receitas} data={sparkData(receitas)} color="#10b981" Icon={TrendingUp} />
-        </div>
-        <div className="lg:col-span-4">
-          <StatCard label="Despesas do mês" value={fmtBRL(despesas)} trend={trends.despesas} positiveIsGood={false} data={sparkData(despesas)} color="#f43f5e" Icon={TrendingDown} />
-        </div>
-        <div className="lg:col-span-4">
-          <StatCard label="Taxa de poupança" value={`${taxaPoupanca}%`} data={sparkData(taxaPoupanca)} color="#a855f7" Icon={PiggyBank} />
-        </div>
-        <div className="lg:col-span-4">
-          <StatCard label="Saldo do mês" value={fmtBRL(saldo)} trend={trends.saldo} data={sparkData(saldo)} color="#3b82f6" Icon={Wallet} />
-        </div>
+        <StatCard
+          title="Receitas do mês"
+          value={brl(receitas)}
+          Icon={TrendingUp}
+          tint="emerald"
+        />
+        <StatCard
+          title="Despesas do mês"
+          value={brl(despesas)}
+          Icon={TrendingDown}
+          tint="rose"
+        />
+        <StatCard
+          title="Taxa de poupança"
+          value={`${poupanca}%`}
+          Icon={PiggyBank}
+          tint="fuchsia"
+        />
+        <StatCard
+          title="Saldo do mês"
+          value={brl(saldo)}
+          Icon={Wallet}
+          tint={saldoPositivo ? 'emerald' : 'rose'}
+        />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 stagger">
-        <div className="lg:col-span-8 min-h-[360px]">
-          <IncomeExpenseChart data={monthlyData} />
-        </div>
-        <div className="lg:col-span-4">
-          <CategoryBreakdown data={summary ?? undefined} />
-        </div>
-      </div>
+      {/* Insights automáticos */}
+      <InsightsCard summary={summary} />
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 stagger">
-        <div className="lg:col-span-5">
-          <BudgetsOverview data={budgetStatus} />
-        </div>
-        <div className="lg:col-span-7">
-          <RecentTransactions data={transactions} />
-        </div>
+      {/* Gráficos */}
+      <DashboardCharts porCategoria={summary?.porCategoria ?? {}} />
+    </div>
+  );
+}
+
+const TINTS: Record<string, string> = {
+  emerald: 'text-emerald-500 bg-emerald-50 dark:bg-emerald-950/40',
+  rose: 'text-rose-500 bg-rose-50 dark:bg-rose-950/40',
+  fuchsia: 'text-fuchsia-500 bg-fuchsia-50 dark:bg-fuchsia-950/40',
+  violet: 'text-violet-500 bg-violet-50 dark:bg-violet-950/40',
+};
+
+function StatCard({
+  title,
+  value,
+  Icon,
+  tint,
+}: {
+  title: string;
+  value: string;
+  Icon: React.ComponentType<{ className?: string }>;
+  tint: string;
+}) {
+  return (
+    <div className="rounded-3xl p-6 bg-white dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800 shadow-sm">
+      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${TINTS[tint]}`}>
+        <Icon className="w-5 h-5" />
       </div>
+      <p className="text-sm text-slate-500 dark:text-slate-400 mt-4">{title}</p>
+      <p className="text-2xl font-bold text-slate-900 dark:text-white mt-1">{value}</p>
     </div>
   );
 }
