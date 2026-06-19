@@ -68,7 +68,7 @@ export default function LoginPage() {
         </button>
 
         <p className="text-center text-xs font-medium text-slate-500 dark:text-slate-400 mt-8">
-          Ao entrar, você concorda com nossos <a href="#" className="text-blue-600 dark:text-blue-400 hover:underline">Termos de Serviço</a>
+          Ao entrar, você concorda com nossos <a href="/terms" className="text-blue-600 dark:text-blue-400 hover:underline">Termos de Serviço</a>
         </p>
       </div>
     </div>

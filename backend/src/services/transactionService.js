@@ -431,18 +431,41 @@ async function resetUserFinances(userId) {
 }
 
 // ── Gastos fixos / recorrentes ──────────────────────────────────
-// Cria N meses de uma despesa fixa (mesma descrição todo mês).
-async function createFixedExpense(userId, { description, amount, category, months = 12 }) {
+// Intervalo (em meses) por tipo de recorrência.
+const RECURRENCE_INTERVALS = { mensal: 1, bimestral: 2, trimestral: 3, semestral: 6, anual: 12 };
+
+// Cria ocorrências de uma despesa recorrente.
+// Configurável: tipo (mensal..anual), data de início e data de fim (opcional).
+// Sem fim → gera `occurrences` ocorrências (padrão 12). Compat: `months` ainda funciona.
+async function createFixedExpense(userId, { description, amount, category, recurrence_type, start_date, end_date, occurrences, months }) {
   const value = Number(amount);
-  const n = Math.min(60, Math.max(1, parseInt(months) || 12));
-  const start = new Date();
-  start.setDate(1);
-  start.setHours(12, 0, 0, 0);
+  const interval = RECURRENCE_INTERVALS[recurrence_type] || 1;
+
+  // Data de início: usa start_date (YYYY-MM-DD) ou hoje. Preserva o dia.
+  let start;
+  if (start_date && /^\d{4}-\d{2}-\d{2}$/.test(start_date)) {
+    const [y, m, d] = start_date.split('-').map(Number);
+    start = new Date(y, m - 1, d, 12, 0, 0);
+  } else {
+    start = new Date();
+    start.setHours(12, 0, 0, 0);
+  }
+
+  // Data de fim (opcional)
+  let end = null;
+  if (end_date && /^\d{4}-\d{2}-\d{2}$/.test(end_date)) {
+    const [y, m, d] = end_date.split('-').map(Number);
+    end = new Date(y, m - 1, d, 23, 59, 59);
+  }
+
+  const maxRows = 120; // trava de segurança
+  const count = Math.min(maxRows, Math.max(1, parseInt(occurrences ?? months) || 12));
 
   const rows = [];
-  for (let i = 0; i < n; i++) {
+  for (let i = 0; i < (end ? maxRows : count); i++) {
     const d = new Date(start);
-    d.setMonth(d.getMonth() + i);
+    d.setMonth(d.getMonth() + i * interval);
+    if (end && d > end) break;
     rows.push({
       user_id: userId,
       amount: value,
@@ -454,6 +477,8 @@ async function createFixedExpense(userId, { description, amount, category, month
       date: d.toISOString(),
     });
   }
+
+  if (!rows.length) throw new Error('Nenhuma ocorrência gerada — verifique as datas.');
 
   const { data, error } = await supabase.from('transactions').insert(rows).select();
   if (error) throw new Error(`Erro ao criar gasto fixo: ${error.message}`);

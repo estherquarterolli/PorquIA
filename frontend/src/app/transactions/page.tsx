@@ -15,6 +15,20 @@ const CATEGORY_EMOJI: Record<string, string> = {
   investimento: '📈', outros: '📦',
 };
 
+const CATEGORIES = [
+  'alimentação', 'transporte', 'moradia', 'saúde', 'lazer',
+  'educação', 'vestuário', 'serviços', 'investimento', 'outros',
+];
+
+const PAYMENT_METHODS = [
+  { value: 'pix', label: 'Pix' },
+  { value: 'cartão_crédito', label: 'Cartão de crédito' },
+  { value: 'cartão_débito', label: 'Cartão de débito' },
+  { value: 'dinheiro', label: 'Dinheiro' },
+  { value: 'transferência', label: 'Transferência' },
+  { value: 'outro', label: 'Outro' },
+];
+
 function exportCSV(transactions: Transaction[]) {
   const header = 'Data,Descrição,Categoria,Método,Tipo,Valor\n';
   const rows = transactions.map((tx) =>
@@ -98,6 +112,12 @@ export default function TransactionsPage() {
         if (key !== monthFilter) return false;
       }
       return true;
+    })
+    // Mais recém-adicionada no topo (created_at desc; date como desempate)
+    .sort((a, b) => {
+      const ca = new Date(a.created_at || a.date).getTime();
+      const cb = new Date(b.created_at || b.date).getTime();
+      return cb - ca;
     });
   }, [transactions, search, typeFilter, categoryFilter, paymentFilter, monthFilter]);
 
@@ -130,7 +150,7 @@ export default function TransactionsPage() {
     await remove(id).catch(() => {});
   }
 
-  async function handleSaveEdit(id: string, fields: { description: string; amount: number; type: 'despesa' | 'receita' }) {
+  async function handleSaveEdit(id: string, fields: { description: string; amount: number; type: 'despesa' | 'receita'; category: string; payment_method: string }) {
     await update(id, fields);
     setEditing(null);
   }
@@ -252,7 +272,12 @@ export default function TransactionsPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-slate-900 dark:text-white text-sm">{tx.description}</p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{tx.category}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 capitalize">
+                      {tx.category}
+                      {tx.payment_method && (
+                        <span className="text-slate-400 dark:text-slate-500"> · {PAYMENT_LABEL[tx.payment_method] || tx.payment_method}</span>
+                      )}
+                    </p>
                   </div>
                   <p className={`font-bold tabular-nums text-sm ${
                     tx.type === 'receita' ? 'text-blue-600 dark:text-blue-400' : 'text-rose-600 dark:text-rose-400'
@@ -298,11 +323,13 @@ function EditModal({
 }: {
   tx: Transaction;
   onClose: () => void;
-  onSave: (id: string, fields: { description: string; amount: number; type: 'despesa' | 'receita' }) => Promise<void>;
+  onSave: (id: string, fields: { description: string; amount: number; type: 'despesa' | 'receita'; category: string; payment_method: string }) => Promise<void>;
 }) {
   const [description, setDescription] = useState(tx.description);
   const [amount, setAmount] = useState(String(tx.amount));
   const [type, setType] = useState<'despesa' | 'receita'>(tx.type);
+  const [category, setCategory] = useState(tx.category || 'outros');
+  const [paymentMethod, setPaymentMethod] = useState(tx.payment_method || '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -316,7 +343,7 @@ function EditModal({
     setSaving(true);
     setError(null);
     try {
-      await onSave(tx.id, { description: description.trim(), amount: value, type });
+      await onSave(tx.id, { description: description.trim(), amount: value, type, category, payment_method: paymentMethod });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao salvar.');
       setSaving(false);
@@ -358,6 +385,37 @@ function EditModal({
               onChange={(e) => setAmount(e.target.value)}
               className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-fuchsia-500 text-sm"
             />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Categoria</label>
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="w-full px-3 py-3 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-fuchsia-500 text-sm capitalize"
+              >
+                {CATEGORIES.map((c) => (
+                  <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>
+                ))}
+                {category && !CATEGORIES.includes(category) && <option value={category}>{category}</option>}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Pagamento</label>
+              <select
+                value={paymentMethod}
+                onChange={(e) => setPaymentMethod(e.target.value)}
+                className="w-full px-3 py-3 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-fuchsia-500 text-sm"
+              >
+                <option value="">—</option>
+                {PAYMENT_METHODS.map((p) => (
+                  <option key={p.value} value={p.value}>{p.label}</option>
+                ))}
+                {paymentMethod && !PAYMENT_METHODS.some((p) => p.value === paymentMethod) && (
+                  <option value={paymentMethod}>{paymentMethod}</option>
+                )}
+              </select>
+            </div>
           </div>
           <div className="flex gap-2">
             {(['despesa', 'receita'] as const).map((t) => (

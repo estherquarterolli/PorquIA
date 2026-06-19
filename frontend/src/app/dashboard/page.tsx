@@ -15,6 +15,7 @@ import { useAuth } from '@/lib/auth-context';
 import { useProfile } from '@/lib/profile-context';
 import { useSummary } from '@/lib/hooks';
 import { DashboardCharts } from '@/components/dashboard/DashboardCharts';
+import { InsightsCard } from '@/components/dashboard/InsightsCard';
 
 function greeting() {
   const h = new Date().getHours();
@@ -70,7 +71,7 @@ export default function DashboardPage() {
 
           <div className="mt-6 rounded-2xl bg-white/10 backdrop-blur p-4 sm:p-5 space-y-3">
             {[
-              ['Abra o Telegram', 'Procure por @PorquIABot'],
+              ['Abra o Telegram', 'Procure por @porquia_bot'],
               ['Mande /start', 'O bot vai responder com seu Chat ID'],
               ['Cole o Chat ID aqui', 'Clique em "Conectar agora" abaixo'],
             ].map(([t, d], i) => (
@@ -168,6 +169,9 @@ export default function DashboardPage() {
           tint={saldoPositivo ? 'emerald' : 'rose'}
         />
       </div>
+
+      {/* Insights automáticos */}
+      <InsightsCard summary={summary} />
 
       {/* Gráficos */}
       <DashboardCharts porCategoria={summary?.porCategoria ?? {}} />

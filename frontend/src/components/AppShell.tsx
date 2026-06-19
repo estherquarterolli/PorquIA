@@ -8,7 +8,7 @@ import { UserAvatar } from './UserAvatar';
 import { NotificationsBell } from './NotificationsBell';
 import { Menu, X, Search } from 'lucide-react';
 
-const PUBLIC_ROUTES = ['/login', '/'];
+const PUBLIC_ROUTES = ['/login', '/', '/terms'];
 
 const TITLES: Record<string, string> = {
   '/dashboard': 'Dashboard',
@@ -17,6 +17,7 @@ const TITLES: Record<string, string> = {
   '/recurring': 'Gastos Fixos',
   '/upcoming': 'Próximos Meses',
   '/investments': 'Investimentos',
+  '/banks': 'Importar Extrato',
   '/subscriptions': 'Assinaturas',
   '/settings': 'Configurações',
 };

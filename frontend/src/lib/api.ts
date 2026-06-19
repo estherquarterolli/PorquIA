@@ -87,6 +87,28 @@ export interface UpcomingMonth {
   items: Pick<Transaction, 'id' | 'amount' | 'description' | 'category' | 'type' | 'date'>[];
 }
 
+export interface BankProvider {
+  id: string;
+  label: string;
+  real: boolean;
+}
+
+export interface BankConnection {
+  id: string;
+  provider: string;
+  label: string;
+  account_balance: number | null;
+  credit_limit: number | null;
+  credit_used: number | null;
+  last_synced_at: string;
+}
+
+export interface BankConnectResult {
+  connection: BankConnection;
+  imported: number;
+  skipped: number;
+}
+
 class ApiClient {
   private async getToken(): Promise<string> {
     const user = auth.currentUser;
@@ -190,7 +212,16 @@ class ApiClient {
     return this.request('GET', '/api/recurring');
   }
 
-  async createFixedExpense(body: { description: string; amount: number; category?: string; months?: number }): Promise<{ created: number }> {
+  async createFixedExpense(body: {
+    description: string;
+    amount: number;
+    category?: string;
+    months?: number;
+    recurrence_type?: string;
+    start_date?: string;
+    end_date?: string;
+    occurrences?: number;
+  }): Promise<{ created: number }> {
     return this.request('POST', '/api/recurring', body);
   }
 
@@ -204,6 +235,30 @@ class ApiClient {
 
   async resetFinances(): Promise<{ transactions: number; budgets: number }> {
     return this.request('POST', '/api/users/reset');
+  }
+
+  async getBankProviders(): Promise<{ data: BankProvider[] }> {
+    return this.request('GET', '/api/banks/providers');
+  }
+
+  async getBankConnections(): Promise<{ data: BankConnection[] }> {
+    return this.request('GET', '/api/banks');
+  }
+
+  async connectBank(provider: string, credentials?: Record<string, string>): Promise<BankConnectResult> {
+    return this.request('POST', '/api/banks/connect', { provider, credentials });
+  }
+
+  async syncBank(id: string): Promise<BankConnectResult> {
+    return this.request('POST', `/api/banks/${id}/sync`);
+  }
+
+  async removeBank(id: string): Promise<{ removed: boolean }> {
+    return this.request('DELETE', `/api/banks/${id}`);
+  }
+
+  async importStatement(content: string, filename: string): Promise<{ found: number; imported: number; skipped: number }> {
+    return this.request('POST', '/api/banks/import', { content, filename });
   }
 }
 

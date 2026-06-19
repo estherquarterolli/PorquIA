@@ -15,6 +15,10 @@ export default function RecurringPage() {
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState('');
   const [months, setMonths] = useState('12');
+  const [recurrenceType, setRecurrenceType] = useState('mensal');
+  const todayISO = new Date().toISOString().slice(0, 10);
+  const [startDate, setStartDate] = useState(todayISO);
+  const [endDate, setEndDate] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [ending, setEnding] = useState<RecurringExpense | null>(null);
@@ -41,10 +45,13 @@ export default function RecurringPage() {
         description: description.trim(),
         amount: value,
         category: category.trim().toLowerCase() || 'outros',
-        months: parseInt(months) || 12,
+        recurrence_type: recurrenceType,
+        start_date: startDate,
+        end_date: endDate || undefined,
+        occurrences: endDate ? undefined : parseInt(months) || 12,
       });
-      setDescription(''); setAmount(''); setCategory('');
-      setToast(`Gasto fixo criado para ${r.created} meses ✅`);
+      setDescription(''); setAmount(''); setCategory(''); setEndDate('');
+      setToast(`Gasto fixo criado: ${r.created} ocorrência(s) ✅`);
       setTimeout(() => setToast(null), 3500);
       load();
     } catch (err) {
@@ -67,7 +74,7 @@ export default function RecurringPage() {
       <div className="max-w-3xl mx-auto space-y-6">
         <div className="border-b border-slate-200/50 dark:border-zinc-800 pb-5">
           <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 dark:text-white mb-1">Gastos Fixos</h1>
-          <p className="text-slate-600 dark:text-slate-400 text-sm">Despesas que se repetem todo mês (aluguel, internet, academia...)</p>
+          <p className="text-slate-600 dark:text-slate-400 text-sm">Despesas que se repetem (mensal, trimestral, anual...) com início e fim configuráveis</p>
         </div>
 
         {/* Form */}
@@ -102,16 +109,57 @@ export default function RecurringPage() {
                 {CATEGORIES.map((c) => <option key={c} value={c} />)}
               </datalist>
               <select
-                value={months}
-                onChange={(e) => setMonths(e.target.value)}
+                value={recurrenceType}
+                onChange={(e) => setRecurrenceType(e.target.value)}
                 className="px-4 py-3 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-fuchsia-500 text-sm"
               >
-                <option value="6">6 meses</option>
-                <option value="12">12 meses</option>
-                <option value="24">24 meses</option>
-                <option value="36">36 meses</option>
+                <option value="mensal">Mensal</option>
+                <option value="bimestral">Bimestral</option>
+                <option value="trimestral">Trimestral</option>
+                <option value="semestral">Semestral</option>
+                <option value="anual">Anual</option>
               </select>
             </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">A partir de</label>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-fuchsia-500 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Até (opcional)</label>
+                <input
+                  type="date"
+                  value={endDate}
+                  min={startDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-fuchsia-500 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
+                  {endDate ? 'Qtd (ignorada)' : 'Quantas vezes'}
+                </label>
+                <select
+                  value={months}
+                  onChange={(e) => setMonths(e.target.value)}
+                  disabled={!!endDate}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-fuchsia-500 text-sm disabled:opacity-50"
+                >
+                  <option value="6">6 vezes</option>
+                  <option value="12">12 vezes</option>
+                  <option value="24">24 vezes</option>
+                  <option value="36">36 vezes</option>
+                </select>
+              </div>
+            </div>
+            <p className="text-xs text-slate-400">
+              Defina uma <strong>data de fim</strong> para encerrar automaticamente, ou escolha <strong>quantas vezes</strong> repetir.
+            </p>
             {error && <p className="text-sm text-rose-500">{error}</p>}
             <button
               type="submit"

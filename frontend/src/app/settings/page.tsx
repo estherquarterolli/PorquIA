@@ -101,7 +101,7 @@ export default function SettingsPage() {
           ) : (
             <form onSubmit={handleLink} className="space-y-4">
               <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
-                Envie <code className="bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded text-xs">/start</code> para <strong>@PorquIABot</strong> no Telegram
+                Envie <code className="bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded text-xs">/start</code> para <strong>@porquia_bot</strong> no Telegram
               </p>
               <div className="flex gap-2">
                 <input

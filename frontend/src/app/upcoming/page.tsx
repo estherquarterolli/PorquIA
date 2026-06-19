@@ -33,7 +33,7 @@ export default function UpcomingPage() {
         </div>
 
         {/* Total previsto */}
-        <div className="rounded-3xl p-6 bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-xl shadow-purple-500/30">
+        <div className="rounded-3xl p-6 bg-gradient-to-br from-orange-500 to-amber-600 text-white shadow-xl shadow-orange-500/30">
           <div className="flex items-center gap-2 text-white/80 text-sm font-medium">
             <CalendarClock className="w-4 h-4" /> Total previsto (6 meses)
           </div>

@@ -11,6 +11,7 @@ const investmentsRouter = require('./routes/investments');
 const subscriptionsRouter = require('./routes/subscriptions');
 const usersRouter = require('./routes/users');
 const recurringRouter = require('./routes/recurring');
+const banksRouter = require('./routes/banks');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -49,7 +50,7 @@ app.use(
     },
   })
 );
-app.use(express.json());
+app.use(express.json({ limit: '5mb' })); // extratos OFX/CSV podem passar de 100kb
 
 // ── Telegram bot ────────────────────────────────────────────────
 // No Render (free) usamos WEBHOOK: o Telegram chama nosso backend
@@ -91,6 +92,7 @@ app.use('/api/investments',   authMiddleware, investmentsRouter);
 app.use('/api/subscriptions', authMiddleware, subscriptionsRouter);
 app.use('/api/users',         authMiddleware, usersRouter);
 app.use('/api/recurring',     authMiddleware, recurringRouter);
+app.use('/api/banks',         authMiddleware, banksRouter);
 
 // Sprint 12 — error handler global
 app.use((err, req, res, _next) => {

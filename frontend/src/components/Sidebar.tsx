@@ -20,6 +20,7 @@ import {
   Send,
   CalendarCheck,
   CalendarClock,
+  Landmark,
 } from 'lucide-react';
 
 const LINKS = [
@@ -29,6 +30,7 @@ const LINKS = [
   { href: '/recurring',     Icon: CalendarCheck,   label: 'Gastos Fixos' },
   { href: '/upcoming',      Icon: CalendarClock,   label: 'Próximos Meses' },
   { href: '/investments',   Icon: TrendingUp,      label: 'Investimentos' },
+  { href: '/banks',         Icon: Landmark,        label: 'Importar Extrato' },
   { href: '/subscriptions', Icon: Repeat,          label: 'Assinaturas' },
   { href: '/settings',      Icon: Settings,        label: 'Configurações' },
 ];

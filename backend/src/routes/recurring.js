@@ -17,11 +17,13 @@ router.get('/', async (req, res) => {
 // Cria um gasto fixo (gera N meses)
 router.post('/', async (req, res) => {
   try {
-    const { description, amount, category, months } = req.body;
+    const { description, amount, category, months, recurrence_type, start_date, end_date, occurrences } = req.body;
     if (!description || !amount) {
       return res.status(400).json({ error: 'description e amount são obrigatórios' });
     }
-    const result = await createFixedExpense(req.userId, { description, amount, category, months });
+    const result = await createFixedExpense(req.userId, {
+      description, amount, category, months, recurrence_type, start_date, end_date, occurrences,
+    });
     res.status(201).json(result);
   } catch (err) {
     console.error('Erro POST /recurring:', err);
