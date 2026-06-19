@@ -5,11 +5,15 @@ require('dotenv').config();
 const supabase = require('./config/supabase');
 const { createBot } = require('./bot');
 const { authMiddleware } = require('./middleware/auth');
+const { requireActivePlan } = require('./middleware/requirePlan');
 const transactionsRouter = require('./routes/transactions');
 const budgetsRouter = require('./routes/budgets');
 const investmentsRouter = require('./routes/investments');
 const subscriptionsRouter = require('./routes/subscriptions');
 const usersRouter = require('./routes/users');
+const recurringRouter = require('./routes/recurring');
+const banksRouter = require('./routes/banks');
+const billingRouter = require('./routes/billing');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -24,8 +28,43 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(cors({ origin: process.env.CORS_ORIGIN?.split(',') || '*' }));
-app.use(express.json());
+// CORS tolerante: normaliza barra final / espaços e aceita múltiplas origens.
+const normalize = (o) => o.trim().replace(/\/+$/, '');
+const allowedOrigins = (process.env.CORS_ORIGIN || '*')
+  .split(',')
+  .map(normalize)
+  .filter(Boolean);
+
+app.use(
+  cors({
+    origin(origin, cb) {
+      // Sem origin = curl/health/server-to-server → libera
+      if (!origin || allowedOrigins.includes('*') || allowedOrigins.includes(normalize(origin))) {
+        return cb(null, true);
+      }
+      // Rede de segurança: libera qualquer deploy do projeto no Render
+      // (assim funciona mesmo se CORS_ORIGIN estiver com valor errado/desatualizado).
+      if (/\.onrender\.com$/.test(normalize(origin))) {
+        return cb(null, true);
+      }
+      console.warn(`⚠️  CORS bloqueou origem: ${origin}. Permitidas: ${allowedOrigins.join(', ')}`);
+      return cb(null, false);
+    },
+  })
+);
+app.use(express.json({ limit: '5mb' })); // extratos OFX/CSV podem passar de 100kb
+
+// ── Telegram bot ────────────────────────────────────────────────
+// No Render (free) usamos WEBHOOK: o Telegram chama nosso backend
+// (e isso acorda o serviço). Localmente caímos no long polling.
+const bot = process.env.DISABLE_TELEGRAM === 'true' ? null : createBot();
+const TELEGRAM_HOOK_PATH = '/telegram-webhook';
+const telegramDomain = process.env.RENDER_EXTERNAL_URL || process.env.PUBLIC_URL;
+
+if (bot && telegramDomain) {
+  // Registra o handler do webhook antes das rotas/erro
+  app.use(bot.webhookCallback(TELEGRAM_HOOK_PATH));
+}
 
 // Sprint 12 — health aprimorado
 app.get('/health', async (req, res) => {
@@ -49,11 +88,21 @@ app.get('/health', async (req, res) => {
   }
 });
 
-app.use('/api/transactions',  authMiddleware, transactionsRouter);
-app.use('/api/budgets',       authMiddleware, budgetsRouter);
-app.use('/api/investments',   authMiddleware, investmentsRouter);
-app.use('/api/subscriptions', authMiddleware, subscriptionsRouter);
-app.use('/api/users',         authMiddleware, usersRouter);
+// Webhook do Abacate Pay — SEM auth nem gate (chamado server-to-server)
+app.post('/api/billing/webhook', billingRouter.webhook);
+
+// Billing (status/checkout/verify) — exige login, mas NÃO exige plano ativo
+// (afinal é por aqui que o usuário sem plano vai assinar).
+app.use('/api/billing', authMiddleware, billingRouter);
+
+// Rotas protegidas — exigem login E acesso ativo (trial/assinatura/whitelist)
+app.use('/api/transactions',  authMiddleware, requireActivePlan, transactionsRouter);
+app.use('/api/budgets',       authMiddleware, requireActivePlan, budgetsRouter);
+app.use('/api/investments',   authMiddleware, requireActivePlan, investmentsRouter);
+app.use('/api/subscriptions', authMiddleware, requireActivePlan, subscriptionsRouter);
+app.use('/api/users',         authMiddleware, requireActivePlan, usersRouter);
+app.use('/api/recurring',     authMiddleware, requireActivePlan, recurringRouter);
+app.use('/api/banks',         authMiddleware, requireActivePlan, banksRouter);
 
 // Sprint 12 — error handler global
 app.use((err, req, res, _next) => {
@@ -64,21 +113,28 @@ app.use((err, req, res, _next) => {
 app.listen(PORT, () => {
   console.log(`🚀 Server rodando em http://localhost:${PORT}`);
 
-  if (process.env.DISABLE_TELEGRAM === 'true') {
-    console.log('⏸️  Bot Telegram desativado (DISABLE_TELEGRAM=true)');
+  if (!bot) {
+    console.log('⏸️  Bot Telegram desativado');
     return;
   }
 
-  const bot = createBot();
-  if (bot) {
-    // bot.launch() rejeita se não conseguir conectar à API do Telegram
-    // (ex.: proxy corporativo com inspeção SSL). Isso NÃO pode derrubar a API.
-    bot
-      .launch({ dropPendingUpdates: true })
-      .then(() => console.log('🤖 Bot Telegram iniciado (long polling)'))
-      .catch((err) => {
-        console.warn('⚠️  Bot Telegram não pôde iniciar:', err.message);
-        console.warn('   A API REST continua funcionando normalmente.');
+  if (telegramDomain) {
+    // Produção (Render): configura o webhook
+    const url = `${telegramDomain}${TELEGRAM_HOOK_PATH}`;
+    bot.telegram
+      .setWebhook(url, { drop_pending_updates: true })
+      .then(() => console.log(`🤖 Webhook do Telegram configurado: ${url}`))
+      .catch((err) => console.warn('⚠️  Falha ao configurar webhook:', err.message));
+  } else {
+    // Local: long polling (precisa remover qualquer webhook antigo antes)
+    bot.telegram
+      .deleteWebhook({ drop_pending_updates: true })
+      .catch(() => {})
+      .finally(() => {
+        bot
+          .launch({ dropPendingUpdates: true })
+          .then(() => console.log('🤖 Bot Telegram iniciado (long polling)'))
+          .catch((err) => console.warn('⚠️  Bot Telegram não pôde iniciar:', err.message));
       });
     process.once('SIGINT', () => bot.stop('SIGINT'));
     process.once('SIGTERM', () => bot.stop('SIGTERM'));

@@ -1,0 +1,14 @@
+tree e9734491cf94c3549a0d512faa384b02af9f218f
+parent aa3a9f9534080d7404f03950b31a5805c1248dbe
+author Esther Quarterolli <115496105+estherquarterolli@users.noreply.github.com> 1781283162 -0300
+committer Esther Quarterolli <115496105+estherquarterolli@users.noreply.github.com> 1781283162 -0300
+
+feat: Sprint 3 - API REST com rotas de transações e orçamentos
+
+- Criar middleware de autenticação por chat_id
+- Implementar rotas GET/POST/DELETE para transações
+- Implementar rotas GET/POST/PUT/DELETE para orçamentos
+- Integrar rotas ao servidor Express
+- Atualizar documentação com endpoints da API
+
+Co-Authored-By: Claude Haiku 4.5 <noreply@anthropic.com>

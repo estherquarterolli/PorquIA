@@ -1,0 +1,58 @@
+# Render Blueprint — PorquIA
+# Define os dois serviços (backend + frontend) de forma versionada.
+# Variáveis marcadas com "sync: false" você preenche no painel do Render
+# (não ficam commitadas, por serem segredos).
+# Docs: https://render.com/docs/blueprint-spec
+
+services:
+  # ──────────────────────────────────────────────
+  # Backend — API REST + Bot Telegram
+  # ──────────────────────────────────────────────
+  - type: web
+    name: porquia-backend
+    runtime: node
+    plan: free
+    region: oregon
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: node --use-system-ca src/server.js
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: FIREBASE_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: CORS_ORIGIN
+        value: https://porquia-frontend.onrender.com
+
+  # ──────────────────────────────────────────────
+  # Frontend — Next.js (dashboard web)
+  # ──────────────────────────────────────────────
+  - type: web
+    name: porquia-frontend
+    runtime: node
+    plan: free
+    region: oregon
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    envVars:
+      # Chaves públicas do Firebase (já vão pro bundle do cliente — não são segredo)
+      - key: NEXT_PUBLIC_FIREBASE_API_KEY
+        value: AIzaSyAuRFc5KlVN5hF_eRRndyXa3zZJLoKkUMU
+      - key: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+        value: porquia-4ab2b.firebaseapp.com
+      - key: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+        value: porquia-4ab2b
+      - key: NEXT_PUBLIC_FIREBASE_APP_ID
+        value: "1:54011785823:web:c883b410b96aec16ed61ea"
+      - key: NEXT_PUBLIC_API_URL
+        value: https://porquia-backend.onrender.com
