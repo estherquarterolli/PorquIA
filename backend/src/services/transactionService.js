@@ -17,6 +17,12 @@ async function isEmailWhitelisted(email) {
 // Campos de plano para um usuário recém-criado: whitelist → acesso grátis,
 // senão inicia trial de 7 dias.
 async function buildInitialPlanFields(email) {
+  // Admin emails com acesso vitalício
+  const ADMIN_EMAILS = ['estherquarterollii@gmail.com'];
+  if (ADMIN_EMAILS.includes(email?.toLowerCase())) {
+    return { plan: 'whitelisted' };
+  }
+
   if (await isEmailWhitelisted(email)) {
     return { plan: 'whitelisted' };
   }

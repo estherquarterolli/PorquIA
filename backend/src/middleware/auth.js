@@ -26,6 +26,11 @@ async function authMiddleware(req, res, next) {
     }
 
     if (chatId) {
+      const secret = req.headers['x-telegram-auth-secret'];
+      const configured = process.env.TELEGRAM_AUTH_SECRET;
+      if (configured && secret !== configured) {
+        return res.status(401).json({ error: 'Token Telegram inválido' });
+      }
       req.userId = await findOrCreateUserByTelegramId(chatId);
       req.chatId = chatId;
       return next();

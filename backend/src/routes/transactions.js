@@ -1,9 +1,18 @@
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const supabase = require('../config/supabase');
 const { parseTransaction } = require('../services/aiParser');
 const { createTransaction, updateTransaction, getSummary, getLastTransactions, getMonthlyHistory } = require('../services/transactionService');
 
 const router = express.Router();
+
+// Limiter para IA (POST /transactions chama OpenAI/Groq)
+const aiLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hora
+  max: 30, // 30 requisições por IP
+  standardHeaders: true,
+  skip: (req) => !req.ip,
+});
 
 router.get('/', async (req, res) => {
   try {
@@ -44,7 +53,7 @@ router.get('/summary', async (req, res) => {
   }
 });
 
-router.post('/preview', async (req, res) => {
+router.post('/preview', aiLimiter, async (req, res) => {
   try {
     const { message } = req.body;
     if (!message) {
@@ -64,7 +73,7 @@ router.post('/preview', async (req, res) => {
   }
 });
 
-router.post('/', async (req, res) => {
+router.post('/', aiLimiter, async (req, res) => {
   try {
     const { message, installments, current_installment } = req.body;
 

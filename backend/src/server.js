@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
 const supabase = require('./config/supabase');
@@ -31,9 +32,10 @@ app.use((req, res, next) => {
   next();
 });
 
-// CORS tolerante: normaliza barra final / espaços e aceita múltiplas origens.
+// CORS: normaliza barra final / espaços e aceita múltiplas origens
 const normalize = (o) => o.trim().replace(/\/+$/, '');
-const allowedOrigins = (process.env.CORS_ORIGIN || '*')
+const defaultOrigin = process.env.NODE_ENV === 'production' ? '' : '*';
+const allowedOrigins = (process.env.CORS_ORIGIN || defaultOrigin)
   .split(',')
   .map(normalize)
   .filter(Boolean);
@@ -45,17 +47,30 @@ app.use(
       if (!origin || allowedOrigins.includes('*') || allowedOrigins.includes(normalize(origin))) {
         return cb(null, true);
       }
-      // Rede de segurança: libera qualquer deploy do projeto no Render
-      // (assim funciona mesmo se CORS_ORIGIN estiver com valor errado/desatualizado).
-      if (/\.onrender\.com$/.test(normalize(origin))) {
-        return cb(null, true);
-      }
       console.warn(`⚠️  CORS bloqueou origem: ${origin}. Permitidas: ${allowedOrigins.join(', ')}`);
       return cb(null, false);
     },
   })
 );
-app.use(express.json({ limit: '5mb' })); // extratos OFX/CSV podem passar de 100kb
+// Limite global reduzido; apenas /api/banks/import usa 5mb
+app.use(express.json({ limit: '100kb' }));
+
+// Rate limiters
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 200, // 200 requisições por IP
+  standardHeaders: true,
+  skip: (req) => !req.ip, // pular se não tiver IP
+});
+
+const aiLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hora
+  max: 30, // 30 requisições por IP (IA chama OpenAI)
+  standardHeaders: true,
+  skip: (req) => !req.ip,
+});
+
+app.use(globalLimiter);
 
 // ── Telegram bot ────────────────────────────────────────────────
 // No Render (free) usamos WEBHOOK: o Telegram chama nosso backend

@@ -88,7 +88,13 @@ async function webhook(req, res) {
   try {
     // Validação: o Abacate envia ?webhookSecret=... na URL
     const secret = req.query.webhookSecret || req.headers['x-webhook-secret'];
-    if (process.env.ABACATE_PAY_WEBHOOK_SECRET && secret !== process.env.ABACATE_PAY_WEBHOOK_SECRET) {
+    const configured = process.env.ABACATE_PAY_WEBHOOK_SECRET;
+
+    if (!configured && process.env.NODE_ENV === 'production') {
+      return res.status(500).json({ error: 'Webhook secret não configurado' });
+    }
+
+    if (configured && secret !== configured) {
       return res.status(401).json({ error: 'Webhook secret inválido' });
     }
 
