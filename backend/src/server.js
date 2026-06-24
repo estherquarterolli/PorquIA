@@ -88,24 +88,22 @@ if (bot && telegramDomain) {
 
 // Sprint 12 — health aprimorado
 app.get('/health', async (req, res) => {
+  let dbStatus = 'unknown';
+  let dbMs = null;
   try {
     const t0 = Date.now();
     const { error } = await supabase.from('users').select('id').limit(1);
-    const dbMs = Date.now() - t0;
-    if (error) throw error;
-    res.json({
-      status: 'OK',
-      timestamp: new Date().toISOString(),
-      uptime_s: Math.round(process.uptime()),
-      database: { status: 'connected', latency_ms: dbMs },
-    });
-  } catch (err) {
-    res.status(503).json({
-      status: 'ERROR',
-      timestamp: new Date().toISOString(),
-      error: 'Database connection failed',
-    });
+    dbMs = Date.now() - t0;
+    dbStatus = error ? 'error' : 'connected';
+  } catch {
+    dbStatus = 'error';
   }
+  res.json({
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    uptime_s: Math.round(process.uptime()),
+    database: { status: dbStatus, latency_ms: dbMs },
+  });
 });
 
 // Stripe webhook — raw body ANTES do express.json global
