@@ -15,6 +15,16 @@ export interface Transaction {
   created_at: string;
 }
 
+export interface ParsedTransaction {
+  amount: number;
+  description: string;
+  category: string;
+  payment_method: string;
+  installments: number;
+  start_date: string | null;
+  type: 'despesa' | 'receita';
+}
+
 export interface Budget {
   id: string;
   user_id: string;
@@ -109,10 +119,20 @@ export interface BankConnectResult {
   skipped: number;
 }
 
+export type Plan = 'trial' | 'monthly' | 'annual' | 'whitelisted' | 'inactive';
+
 export interface BillingStatus {
-  plan: 'free' | 'pro';
-  status: 'active' | 'trialing' | 'canceled' | 'past_due' | 'inactive';
-  current_period_end: string | null;
+  email: string;
+  plan: Plan;
+  trial_ends_at: string | null;
+  subscription_ends_at: string | null;
+  pending_billing_id?: string | null;
+  pending_plan?: string | null;
+  active: boolean;
+}
+
+export interface CheckoutResult {
+  url: string;
 }
 
 class ApiClient {
@@ -155,13 +175,21 @@ class ApiClient {
     return this.request('GET', `/api/transactions?limit=${limit}`);
   }
 
-  async createTransaction(message: string): Promise<{ data: Transaction }> {
-    return this.request('POST', '/api/transactions', { message });
+  async createTransaction(
+    message: string,
+    installments?: number,
+    current_installment?: number
+  ): Promise<{ data: Transaction }> {
+    return this.request('POST', '/api/transactions', { message, installments, current_installment });
+  }
+
+  async previewTransaction(message: string): Promise<ParsedTransaction> {
+    return this.request('POST', '/api/transactions/preview', { message });
   }
 
   async updateTransaction(
     id: string,
-    fields: { amount?: number; description?: string; category?: string; type?: 'despesa' | 'receita' }
+    fields: { amount?: number; description?: string; category?: string; type?: 'despesa' | 'receita'; payment_method?: string }
   ): Promise<{ data: Transaction }> {
     return this.request('PUT', `/api/transactions/${id}`, fields);
   }
@@ -206,6 +234,32 @@ class ApiClient {
     return this.request('GET', '/api/subscriptions');
   }
 
+  async createSubscription(body: {
+    description: string;
+    amount: number;
+    category?: string;
+    recurrence_type?: string;
+    start_date?: string;
+    end_date?: string;
+    occurrences?: number;
+    months?: number;
+  }): Promise<{ created: number }> {
+    return this.request('POST', '/api/subscriptions', body);
+  }
+
+  async createFixedExpense(body: {
+    description: string;
+    amount: number;
+    category?: string;
+    recurrence_type?: string;
+    start_date?: string;
+    end_date?: string;
+    occurrences?: number;
+    months?: number;
+  }): Promise<{ created: number }> {
+    return this.request('POST', '/api/recurring', body);
+  }
+
   async getUserProfile(): Promise<{ id: string; email: string; telegram_chat_id: string | null; created_at: string }> {
     return this.request('GET', '/api/users/profile');
   }
@@ -216,19 +270,6 @@ class ApiClient {
 
   async getRecurring(): Promise<{ data: RecurringExpense[] }> {
     return this.request('GET', '/api/recurring');
-  }
-
-  async createFixedExpense(body: {
-    description: string;
-    amount: number;
-    category?: string;
-    months?: number;
-    recurrence_type?: string;
-    start_date?: string;
-    end_date?: string;
-    occurrences?: number;
-  }): Promise<{ created: number }> {
-    return this.request('POST', '/api/recurring', body);
   }
 
   async endRecurring(description: string, from_month: string): Promise<{ deleted: number }> {
@@ -267,16 +308,17 @@ class ApiClient {
     return this.request('POST', '/api/banks/import', { content, filename });
   }
 
+  // ── Billing / assinatura ──────────────────────────────────────
   async getBillingStatus(): Promise<BillingStatus> {
     return this.request('GET', '/api/billing/status');
   }
 
-  async createCheckoutSession(): Promise<{ url: string }> {
-    return this.request('POST', '/api/billing/checkout');
+  async createCheckout(plan: 'monthly' | 'annual'): Promise<CheckoutResult> {
+    return this.request('POST', '/api/billing/checkout', { plan });
   }
 
-  async openBillingPortal(): Promise<{ url: string }> {
-    return this.request('POST', '/api/billing/portal');
+  async verifyPayment(): Promise<BillingStatus> {
+    return this.request('POST', '/api/billing/verify');
   }
 }
 

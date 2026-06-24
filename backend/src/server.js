@@ -1,10 +1,12 @@
 const express = require('express');
 const cors = require('cors');
+const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
 const supabase = require('./config/supabase');
 const { createBot } = require('./bot');
 const { authMiddleware } = require('./middleware/auth');
+const { requireActivePlan } = require('./middleware/requirePlan');
 const transactionsRouter = require('./routes/transactions');
 const budgetsRouter = require('./routes/budgets');
 const investmentsRouter = require('./routes/investments');
@@ -27,9 +29,10 @@ app.use((req, res, next) => {
   next();
 });
 
-// CORS tolerante: normaliza barra final / espaços e aceita múltiplas origens.
+// CORS: normaliza barra final / espaços e aceita múltiplas origens
 const normalize = (o) => o.trim().replace(/\/+$/, '');
-const allowedOrigins = (process.env.CORS_ORIGIN || '*')
+const defaultOrigin = process.env.NODE_ENV === 'production' ? '' : '*';
+const allowedOrigins = (process.env.CORS_ORIGIN || defaultOrigin)
   .split(',')
   .map(normalize)
   .filter(Boolean);
@@ -37,11 +40,10 @@ const allowedOrigins = (process.env.CORS_ORIGIN || '*')
 app.use(
   cors({
     origin(origin, cb) {
-      // Sem origin = curl/health/server-to-server → libera
       if (!origin || allowedOrigins.includes('*') || allowedOrigins.includes(normalize(origin))) {
         return cb(null, true);
       }
-            // Libera deploys no Render e Vercel automaticamente
+      // Libera deploys no Render e Vercel automaticamente
       if (/\.onrender\.com$/.test(normalize(origin)) || /\.vercel\.app$/.test(normalize(origin))) {
         return cb(null, true);
       }
@@ -50,11 +52,28 @@ app.use(
     },
   })
 );
-app.use(express.json({ limit: '5mb' })); // extratos OFX/CSV podem passar de 100kb
+
+// Limite global reduzido; apenas /api/banks/import usa 5mb
+app.use(express.json({ limit: '100kb' }));
+
+// Rate limiters
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 200,
+  standardHeaders: true,
+  skip: (req) => !req.ip,
+});
+
+const aiLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  skip: (req) => !req.ip,
+});
+
+app.use(globalLimiter);
 
 // ── Telegram bot ────────────────────────────────────────────────
-// No Render (free) usamos WEBHOOK: o Telegram chama nosso backend
-// (e isso acorda o serviço). Localmente caímos no long polling.
 const bot = process.env.DISABLE_TELEGRAM === 'true' ? null : createBot();
 const TELEGRAM_HOOK_PATH = '/telegram-webhook';
 const railwayDomain = process.env.RAILWAY_PUBLIC_DOMAIN;
@@ -64,12 +83,8 @@ const telegramDomain =
   process.env.PUBLIC_URL;
 
 if (bot && telegramDomain) {
-  // Registra o handler do webhook antes das rotas/erro
   app.use(bot.webhookCallback(TELEGRAM_HOOK_PATH));
 }
-
-// Stripe webhook: raw body ANTES do express.json global
-app.post('/api/billing/webhook', express.raw({ type: 'application/json' }), stripeWebhookHandler);
 
 // Sprint 12 — health aprimorado
 app.get('/health', async (req, res) => {
@@ -93,14 +108,20 @@ app.get('/health', async (req, res) => {
   }
 });
 
-app.use('/api/transactions',  authMiddleware, transactionsRouter);
-app.use('/api/budgets',       authMiddleware, budgetsRouter);
-app.use('/api/investments',   authMiddleware, investmentsRouter);
-app.use('/api/subscriptions', authMiddleware, subscriptionsRouter);
-app.use('/api/users',         authMiddleware, usersRouter);
-app.use('/api/recurring',     authMiddleware, recurringRouter);
-app.use('/api/banks',         authMiddleware, banksRouter);
-app.use('/api/billing',       authMiddleware, billingRouter);
+// Stripe webhook — raw body ANTES do express.json global
+app.post('/api/billing/webhook', express.raw({ type: 'application/json' }), stripeWebhookHandler);
+
+// Billing (status/checkout/verify) — exige login, mas NÃO exige plano ativo
+app.use('/api/billing', authMiddleware, billingRouter);
+
+// Rotas protegidas — exigem login E acesso ativo (trial/assinatura/whitelist)
+app.use('/api/transactions',  authMiddleware, requireActivePlan, transactionsRouter);
+app.use('/api/budgets',       authMiddleware, requireActivePlan, budgetsRouter);
+app.use('/api/investments',   authMiddleware, requireActivePlan, investmentsRouter);
+app.use('/api/subscriptions', authMiddleware, requireActivePlan, subscriptionsRouter);
+app.use('/api/users',         authMiddleware, requireActivePlan, usersRouter);
+app.use('/api/recurring',     authMiddleware, requireActivePlan, recurringRouter);
+app.use('/api/banks',         authMiddleware, requireActivePlan, banksRouter);
 
 // Sprint 12 — error handler global
 app.use((err, req, res, _next) => {
@@ -117,14 +138,12 @@ app.listen(PORT, () => {
   }
 
   if (telegramDomain) {
-    // Produção (Render): configura o webhook
     const url = `${telegramDomain}${TELEGRAM_HOOK_PATH}`;
     bot.telegram
       .setWebhook(url, { drop_pending_updates: true })
       .then(() => console.log(`🤖 Webhook do Telegram configurado: ${url}`))
       .catch((err) => console.warn('⚠️  Falha ao configurar webhook:', err.message));
   } else {
-    // Local: long polling (precisa remover qualquer webhook antigo antes)
     bot.telegram
       .deleteWebhook({ drop_pending_updates: true })
       .catch(() => {})
@@ -139,7 +158,6 @@ app.listen(PORT, () => {
   }
 });
 
-// Rede de segurança: nunca deixar uma rejeição não-tratada derrubar o servidor
 process.on('unhandledRejection', (reason) => {
   console.warn('⚠️  Unhandled rejection (ignorado):', reason?.message || reason);
 });

@@ -3,12 +3,16 @@
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
+import { api } from '@/lib/api';
 import { Sidebar } from './Sidebar';
 import { UserAvatar } from './UserAvatar';
 import { NotificationsBell } from './NotificationsBell';
 import { Menu, X, Search } from 'lucide-react';
 
+// Rotas sem autenticação (renderizadas sem o chrome do app)
 const PUBLIC_ROUTES = ['/login', '/', '/terms'];
+// Rotas que exigem login mas NÃO o chrome do app nem assinatura ativa
+const AUTH_NO_CHROME_ROUTES = ['/paywall', '/checkout/success'];
 
 const TITLES: Record<string, string> = {
   '/dashboard': 'Dashboard',
@@ -29,7 +33,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const isPublic = PUBLIC_ROUTES.includes(pathname);
+  const isAuthNoChrome = AUTH_NO_CHROME_ROUTES.includes(pathname);
+  const needsPlan = !isPublic && !isAuthNoChrome; // somente as rotas do app
   const title = TITLES[pathname] ?? 'PorquIA';
+
+  // Gate de assinatura: estados para as rotas do app
+  const [planChecked, setPlanChecked] = useState(false);
+  const [planActive, setPlanActive] = useState(false);
 
   useEffect(() => {
     if (!loading && !user && !isPublic) {
@@ -37,12 +47,47 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }
   }, [user, loading, isPublic, router]);
 
+  // Verifica assinatura ativa nas rotas do app; sem plano → paywall
+  useEffect(() => {
+    if (loading || !user || !needsPlan) return;
+    let cancelled = false;
+    api
+      .getBillingStatus()
+      .then((s) => {
+        if (cancelled) return;
+        setPlanChecked(true);
+        setPlanActive(s.active);
+        if (!s.active) router.replace('/paywall');
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setPlanChecked(true);
+        router.replace('/paywall');
+      });
+    return () => { cancelled = true; };
+  }, [user, loading, needsPlan, pathname, router]);
+
   // Fecha o drawer ao trocar de rota
   useEffect(() => setDrawerOpen(false), [pathname]);
 
   if (isPublic) return <>{children}</>;
 
   if (loading || !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-zinc-950">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-fuchsia-500 via-pink-500 to-rose-500 animate-pulse shadow-lg shadow-pink-500/40" />
+          <p className="text-sm font-medium text-slate-400 dark:text-slate-500">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Rotas autenticadas sem chrome (paywall, checkout): renderiza direto
+  if (isAuthNoChrome) return <>{children}</>;
+
+  // Rotas do app: aguarda confirmação de assinatura ativa
+  if (!planChecked || !planActive) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-zinc-950">
         <div className="flex flex-col items-center gap-4">

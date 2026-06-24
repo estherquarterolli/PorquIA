@@ -21,10 +21,10 @@ export function useTransactions() {
     }
   }, []);
 
-  const create = useCallback(async (message: string) => {
+  const create = useCallback(async (message: string, installments?: number, current_installment?: number) => {
     try {
       setError(null);
-      const result = await api.createTransaction(message);
+      const result = await api.createTransaction(message, installments, current_installment);
       setTransactions((prev) => [result.data, ...prev]);
       return result.data;
     } catch (err) {

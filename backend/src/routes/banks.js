@@ -11,6 +11,9 @@ const { parseStatement } = require('../services/statementImport');
 
 const router = express.Router();
 
+// Middleware para aceitar payloads maiores apenas na rota /import
+const largePayload = express.json({ limit: '5mb' });
+
 // Lista os providers disponíveis (demo, nubank, itau, bradesco)
 router.get('/providers', (req, res) => {
   res.json({ data: listProviders() });
@@ -41,7 +44,7 @@ router.post('/connect', async (req, res) => {
 });
 
 // Importa um extrato OFX/CSV (conteúdo enviado como texto no body)
-router.post('/import', async (req, res) => {
+router.post('/import', largePayload, async (req, res) => {
   try {
     const { content, filename } = req.body;
     if (!content) return res.status(400).json({ error: 'content (texto do arquivo) é obrigatório' });

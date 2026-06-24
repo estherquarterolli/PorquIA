@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { useTransactions } from '@/lib/hooks';
-import { Transaction } from '@/lib/api';
-import { Download, Trash2, TrendingDown, TrendingUp, Pencil, X } from 'lucide-react';
+import { api, Transaction, ParsedTransaction } from '@/lib/api';
+import { Download, Trash2, TrendingDown, TrendingUp, Pencil, X, RefreshCw } from 'lucide-react';
 
 function brl(v: number) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
@@ -82,6 +82,15 @@ export default function TransactionsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
+  const [preview, setPreview] = useState<ParsedTransaction | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [isFixedExpense, setIsFixedExpense] = useState(false);
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  const [pendingFixedParsed, setPendingFixedParsed] = useState<ParsedTransaction | null>(null);
+  const [showCreditModal, setShowCreditModal] = useState(false);
+  const [totalInstallments, setTotalInstallments] = useState('1');
+  const [currentInstallment, setCurrentInstallment] = useState('1');
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<'all' | 'despesa' | 'receita'>('all');
   const [monthFilter, setMonthFilter] = useState('');
@@ -129,17 +138,92 @@ export default function TransactionsPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!message.trim()) return;
+    setSubmitError(null);
+    setPreviewError(null);
+
+    try {
+      setPreviewLoading(true);
+      const parsed = await api.previewTransaction(message);
+      setPreview(parsed);
+
+      if (isFixedExpense) {
+        setPendingFixedParsed(parsed);
+        setShowSubscriptionModal(true);
+        return;
+      }
+
+      if (parsed.payment_method === 'cartão_crédito') {
+        setTotalInstallments(String(Math.max(1, parsed.installments || 1)));
+        setCurrentInstallment('1');
+        setShowCreditModal(true);
+        return;
+      }
+
+      await sendTransaction(parsed);
+    } catch (err) {
+      setPreviewError(err instanceof Error ? err.message : 'Erro ao analisar a transação');
+    } finally {
+      setPreviewLoading(false);
+    }
+  }
+
+  async function sendFixed(parsed: ParsedTransaction, asSubscription: boolean) {
     try {
       setIsSubmitting(true);
       setSubmitError(null);
       setSubmitSuccess(null);
-      const result = await create(message);
+
+      if (asSubscription) {
+        await api.createSubscription({
+          description: parsed.description,
+          amount: parsed.amount,
+          category: parsed.category,
+          recurrence_type: 'mensal',
+          start_date: parsed.start_date ? `${parsed.start_date}-01` : undefined,
+        });
+        setSubmitSuccess(`✓ ${parsed.description} registrada como assinatura! Confira na aba Assinaturas.`);
+      } else {
+        await api.createFixedExpense({
+          description: parsed.description,
+          amount: parsed.amount,
+          category: parsed.category,
+          recurrence_type: 'mensal',
+          start_date: parsed.start_date ? `${parsed.start_date}-01` : undefined,
+        });
+        setSubmitSuccess(`✓ Gasto fixo ${parsed.description} registrado`);
+      }
+
       setMessage('');
-      setSubmitSuccess(`✓ ${result.description} foi registrado`);
-      setTimeout(() => setSubmitSuccess(null), 4000);
-      fetch(); // recarrega para refletir parcelas futuras
+      setIsFixedExpense(false);
+      setPendingFixedParsed(null);
+      setPreview(null);
+      setTimeout(() => setSubmitSuccess(null), 5000);
+      fetch();
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : 'Erro');
+      setSubmitError(err instanceof Error ? err.message : 'Erro ao criar transação');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function sendTransaction(parsed: ParsedTransaction) {
+    try {
+      setIsSubmitting(true);
+      setSubmitError(null);
+      setSubmitSuccess(null);
+
+      const installments = parsed.payment_method === 'cartão_crédito' ? Number(totalInstallments) : undefined;
+      const current_installment = parsed.payment_method === 'cartão_crédito' ? Number(currentInstallment) : undefined;
+      const result = await create(message, installments, current_installment);
+      setSubmitSuccess(`✓ ${result.description} foi registrado`);
+
+      setMessage('');
+      setIsFixedExpense(false);
+      setPreview(null);
+      setTimeout(() => setSubmitSuccess(null), 4000);
+      fetch();
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : 'Erro ao criar transação');
     } finally {
       setIsSubmitting(false);
     }
@@ -181,11 +265,52 @@ export default function TransactionsPage() {
                 disabled={isSubmitting || !message.trim()}
                 className="absolute right-2 top-1/2 -translate-y-1/2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 dark:disabled:bg-slate-700 text-white disabled:text-slate-400 rounded-lg text-sm font-bold transition-all"
               >
-                {isSubmitting ? '...' : 'Enviar'}
+                {previewLoading ? 'Analisando...' : isSubmitting ? '...' : 'Enviar'}
               </button>
             </div>
+            <div className="flex flex-wrap items-center gap-3 mb-2">
+              <label className="inline-flex items-center gap-2 rounded-full border border-slate-200/70 dark:border-slate-700/70 bg-slate-50 dark:bg-slate-900/60 px-3 py-2 text-sm text-slate-700 dark:text-slate-200 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={isFixedExpense}
+                  onChange={(e) => setIsFixedExpense(e.target.checked)}
+                  className="h-4 w-4 rounded border-slate-300 text-fuchsia-600 focus:ring-fuchsia-500"
+                />
+                Gasto fixo
+              </label>
+              {isFixedExpense && (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-fuchsia-200/70 dark:border-fuchsia-800/50 bg-fuchsia-50 dark:bg-fuchsia-950/30 px-3 py-2 text-xs font-medium text-fuchsia-600 dark:text-fuchsia-400">
+                  <RefreshCw className="w-3 h-3" />
+                  Será perguntado se é assinatura
+                </span>
+              )}
+            </div>
+            {preview && (
+              <div className="rounded-2xl border border-slate-200/70 dark:border-slate-700/70 bg-slate-50 dark:bg-slate-900/60 p-4 text-sm text-slate-700 dark:text-slate-200">
+                <p className="font-semibold mb-2">Prévia de interpretação</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <p className="font-semibold">Descrição</p>
+                    <p>{preview.description}</p>
+                  </div>
+                  <div>
+                    <p className="font-semibold">Categoria</p>
+                    <p>{preview.category}</p>
+                  </div>
+                  <div>
+                    <p className="font-semibold">Pagamento</p>
+                    <p>{preview.payment_method}</p>
+                  </div>
+                  <div>
+                    <p className="font-semibold">Parcelas</p>
+                    <p>{preview.installments}x</p>
+                  </div>
+                </div>
+              </div>
+            )}
             {submitSuccess && <p className="text-green-600 dark:text-green-400 text-sm font-semibold">{submitSuccess}</p>}
             {submitError && <p className="text-red-600 dark:text-red-400 text-sm">{submitError}</p>}
+            {previewError && <p className="text-orange-600 dark:text-orange-400 text-sm">{previewError}</p>}
           </form>
         </div>
 
@@ -305,6 +430,40 @@ export default function TransactionsPage() {
         </div>
       </div>
 
+      {showSubscriptionModal && pendingFixedParsed && (
+        <SubscriptionModal
+          description={pendingFixedParsed.description}
+          onClose={() => {
+            setShowSubscriptionModal(false);
+            setPendingFixedParsed(null);
+          }}
+          onSubscription={async () => {
+            setShowSubscriptionModal(false);
+            if (pendingFixedParsed) await sendFixed(pendingFixedParsed, true);
+          }}
+          onFixed={async () => {
+            setShowSubscriptionModal(false);
+            if (pendingFixedParsed) await sendFixed(pendingFixedParsed, false);
+          }}
+        />
+      )}
+
+      {showCreditModal && (
+        <CreditModal
+          totalInstallments={totalInstallments}
+          currentInstallment={currentInstallment}
+          onClose={() => setShowCreditModal(false)}
+          onConfirm={async (total, current) => {
+            setTotalInstallments(String(total));
+            setCurrentInstallment(String(current));
+            setShowCreditModal(false);
+            if (preview) {
+              await sendTransaction(preview);
+            }
+          }}
+        />
+      )}
+
       {editing && (
         <EditModal
           tx={editing}
@@ -312,6 +471,195 @@ export default function TransactionsPage() {
           onSave={handleSaveEdit}
         />
       )}
+    </div>
+  );
+}
+
+function SubscriptionModal({
+  description,
+  onClose,
+  onSubscription,
+  onFixed,
+}: {
+  description: string;
+  onClose: () => void;
+  onSubscription: () => Promise<void>;
+  onFixed: () => Promise<void>;
+}) {
+  const [saving, setSaving] = useState(false);
+
+  async function handleChoice(fn: () => Promise<void>) {
+    setSaving(true);
+    try { await fn(); } finally { setSaving(false); }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      <div className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-4 mb-1">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-2xl bg-fuchsia-100 dark:bg-fuchsia-900/30 flex items-center justify-center flex-shrink-0">
+              <RefreshCw className="w-5 h-5 text-fuchsia-600 dark:text-fuchsia-400" />
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.15em] text-fuchsia-500 dark:text-fuchsia-400">Gasto Fixo</p>
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white">É uma assinatura?</h3>
+            </div>
+          </div>
+          <button onClick={onClose} disabled={saving} className="text-slate-400 hover:text-slate-600 dark:hover:text-white mt-1 disabled:opacity-40">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <p className="text-sm text-slate-500 dark:text-slate-400 mb-6 pl-14">
+          &ldquo;<span className="font-semibold text-slate-800 dark:text-slate-200">{description}</span>&rdquo; tem cobrança automática recorrente?
+        </p>
+
+        <div className="grid grid-cols-2 gap-3 mb-5">
+          <button
+            onClick={() => handleChoice(onSubscription)}
+            disabled={saving}
+            className="group flex flex-col items-center gap-3 p-5 rounded-2xl border-2 border-fuchsia-200 dark:border-fuchsia-800/60 bg-fuchsia-50 dark:bg-fuchsia-950/30 hover:border-fuchsia-400 dark:hover:border-fuchsia-500 hover:bg-fuchsia-100 dark:hover:bg-fuchsia-950/60 transition-all disabled:opacity-50"
+          >
+            <span className="text-3xl group-hover:scale-110 transition-transform">📱</span>
+            <div className="text-center">
+              <p className="font-bold text-sm text-fuchsia-700 dark:text-fuchsia-300">Sim, assinatura</p>
+              <p className="text-xs text-fuchsia-500/80 dark:text-fuchsia-400/60 mt-0.5">Netflix, Spotify, planos...</p>
+            </div>
+          </button>
+
+          <button
+            onClick={() => handleChoice(onFixed)}
+            disabled={saving}
+            className="group flex flex-col items-center gap-3 p-5 rounded-2xl border-2 border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 hover:border-slate-400 dark:hover:border-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-all disabled:opacity-50"
+          >
+            <span className="text-3xl group-hover:scale-110 transition-transform">📋</span>
+            <div className="text-center">
+              <p className="font-bold text-sm text-slate-700 dark:text-slate-200">Não, gasto fixo</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Aluguel, conta, plano...</p>
+            </div>
+          </button>
+        </div>
+
+        <p className="text-center text-xs text-slate-400 dark:text-slate-500">
+          Assinaturas ficam numa aba separada para melhor controle.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function CreditModal({
+  totalInstallments,
+  currentInstallment,
+  onClose,
+  onConfirm,
+}: {
+  totalInstallments: string;
+  currentInstallment: string;
+  onClose: () => void;
+  onConfirm: (total: number, current: number) => Promise<void>;
+}) {
+  const [total, setTotal] = useState(totalInstallments);
+  const [current, setCurrent] = useState(currentInstallment);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const totalNum = parseInt(total, 10);
+
+  async function confirm() {
+    const totalNumber = parseInt(total, 10);
+    const currentNumber = parseInt(current, 10);
+
+    if (isNaN(totalNumber) || totalNumber < 1) {
+      setError('Informe o total de parcelas.');
+      return;
+    }
+    if (isNaN(currentNumber) || currentNumber < 1 || currentNumber > totalNumber) {
+      setError('Informe a parcela atual válida.');
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    try {
+      await onConfirm(totalNumber, currentNumber);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao confirmar.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      <div className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6">
+        <div className="flex items-start justify-between gap-4 mb-5">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.15em] text-blue-500 dark:text-blue-400">Cartão de crédito</p>
+            <h3 className="text-2xl font-bold text-slate-900 dark:text-white mt-0.5">Detalhes das parcelas</h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+              Informe o total e em qual parcela você está agora.
+            </p>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-white mt-1">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+          <label className="space-y-2 text-sm font-medium text-slate-700 dark:text-slate-200">
+            <span>Total de parcelas</span>
+            <input
+              type="number"
+              min="1"
+              value={total}
+              onChange={(e) => setTotal(e.target.value)}
+              className="w-full px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+            />
+          </label>
+          <label className="space-y-2 text-sm font-medium text-slate-700 dark:text-slate-200">
+            <span>Parcela atual</span>
+            <input
+              type="number"
+              min="1"
+              max={total}
+              value={current}
+              onChange={(e) => setCurrent(e.target.value)}
+              className="w-full px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+            />
+          </label>
+        </div>
+
+        {!isNaN(totalNum) && totalNum > 1 && (
+          <div className="mb-4 p-3 rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-800/40">
+            <p className="text-xs text-blue-700 dark:text-blue-300 font-medium">
+              As parcelas restantes serão lançadas automaticamente nos próximos meses.
+            </p>
+          </div>
+        )}
+
+        {error && <p className="text-sm text-rose-500 mb-3">{error}</p>}
+
+        <div className="flex items-center justify-end gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-950 transition"
+          >
+            Voltar
+          </button>
+          <button
+            type="button"
+            onClick={confirm}
+            disabled={saving}
+            className="px-5 py-3 rounded-2xl bg-gradient-to-r from-blue-600 to-blue-700 text-white text-sm font-semibold shadow-lg shadow-blue-500/20 hover:from-blue-500 hover:to-blue-600 disabled:opacity-70 transition-all"
+          >
+            {saving ? 'Confirmando...' : totalNum === 1 ? 'Confirmar' : 'Salvar parcelas'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

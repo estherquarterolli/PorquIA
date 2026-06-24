@@ -1,5 +1,36 @@
 const supabase = require('../config/supabase');
 
+const TRIAL_DAYS = 7;
+const PLAN_DAYS = { monthly: 30, annual: 365 };
+
+// Verifica se um email está na whitelist de parceiros/afiliados (case-insensitive).
+async function isEmailWhitelisted(email) {
+  if (!email) return false;
+  const { data } = await supabase
+    .from('whitelisted_emails')
+    .select('id')
+    .ilike('email', email.trim())
+    .maybeSingle();
+  return !!data;
+}
+
+// Campos de plano para um usuário recém-criado: whitelist → acesso grátis,
+// senão inicia trial de 7 dias.
+async function buildInitialPlanFields(email) {
+  // Admin emails com acesso vitalício
+  const ADMIN_EMAILS = ['estherquarterollii@gmail.com'];
+  if (ADMIN_EMAILS.includes(email?.toLowerCase())) {
+    return { plan: 'whitelisted' };
+  }
+
+  if (await isEmailWhitelisted(email)) {
+    return { plan: 'whitelisted' };
+  }
+  const trialEnds = new Date();
+  trialEnds.setDate(trialEnds.getDate() + TRIAL_DAYS);
+  return { plan: 'trial', trial_ends_at: trialEnds.toISOString() };
+}
+
 async function findOrCreateUserByGoogleId(googleId, email) {
   // Tenta achar primeiro (caminho comum após o 1º login)
   const { data: existing } = await supabase
@@ -10,16 +41,28 @@ async function findOrCreateUserByGoogleId(googleId, email) {
 
   if (existing) return existing.id;
 
+  // Novo usuário → define trial ou whitelist
+  const initial = await buildInitialPlanFields(email);
+
   // upsert atômico: seguro contra requisições paralelas no 1º login
-  // (evita "duplicate key" quando várias chamadas criam o usuário ao mesmo tempo)
+  // (ignoreDuplicates evita sobrescrever o plano de uma conta já existente numa corrida)
   const { data: created, error } = await supabase
     .from('users')
-    .upsert({ google_id: googleId, email }, { onConflict: 'google_id' })
+    .upsert({ google_id: googleId, email, ...initial }, { onConflict: 'google_id', ignoreDuplicates: true })
     .select('id')
-    .single();
+    .maybeSingle();
 
   if (error) throw new Error(`Erro ao criar usuário: ${error.message}`);
-  return created.id;
+  if (created) return created.id;
+
+  // Corrida: a conta já foi criada em paralelo — busca de novo
+  const { data: again, error: againError } = await supabase
+    .from('users')
+    .select('id')
+    .eq('google_id', googleId)
+    .single();
+  if (againError) throw new Error(`Erro ao criar usuário: ${againError.message}`);
+  return again.id;
 }
 
 async function findOrCreateUserByTelegramId(chatId) {
@@ -31,23 +74,125 @@ async function findOrCreateUserByTelegramId(chatId) {
 
   if (existing) return existing.id;
 
+  const email = `telegram_${chatId}@porquia.app`;
+  const initial = await buildInitialPlanFields(email);
+
   const { data: created, error } = await supabase
     .from('users')
     .upsert(
-      { telegram_chat_id: String(chatId), email: `telegram_${chatId}@porquia.app` },
-      { onConflict: 'telegram_chat_id' }
+      { telegram_chat_id: String(chatId), email, ...initial },
+      { onConflict: 'telegram_chat_id', ignoreDuplicates: true }
     )
     .select('id')
-    .single();
+    .maybeSingle();
 
   if (error) throw new Error(`Erro ao criar usuário: ${error.message}`);
-  return created.id;
+  if (created) return created.id;
+
+  const { data: again, error: againError } = await supabase
+    .from('users')
+    .select('id')
+    .eq('telegram_chat_id', String(chatId))
+    .single();
+  if (againError) throw new Error(`Erro ao criar usuário: ${againError.message}`);
+  return again.id;
+}
+
+// ── Billing / assinatura ──────────────────────────────────────────
+function computePlanActive(u) {
+  const now = Date.now();
+  if (u.plan === 'whitelisted') return true;
+  if (u.plan === 'trial') return !!u.trial_ends_at && new Date(u.trial_ends_at).getTime() > now;
+  if (u.plan === 'monthly' || u.plan === 'annual') {
+    return !!u.subscription_ends_at && new Date(u.subscription_ends_at).getTime() > now;
+  }
+  return false;
+}
+
+// Status de acesso do usuário — usado pelo middleware de gate e pelo frontend.
+async function getUserAccessStatus(userId) {
+  const { data, error } = await supabase
+    .from('users')
+    .select('email, plan, trial_ends_at, subscription_ends_at, pending_billing_id, pending_plan')
+    .eq('id', userId)
+    .single();
+  if (error) throw new Error(error.message);
+  return {
+    email: data.email,
+    plan: data.plan,
+    trial_ends_at: data.trial_ends_at,
+    subscription_ends_at: data.subscription_ends_at,
+    pending_billing_id: data.pending_billing_id,
+    pending_plan: data.pending_plan,
+    active: computePlanActive(data),
+  };
+}
+
+// Registra a cobrança pendente (mapeia billing → usuário/plano p/ o webhook).
+async function setPendingBilling(userId, billingId, plan) {
+  const { error } = await supabase
+    .from('users')
+    .update({ pending_billing_id: billingId, pending_plan: plan })
+    .eq('id', userId);
+  if (error) throw new Error(error.message);
+}
+
+// Ativa/renova a assinatura: estende a partir do máximo entre hoje e o fim atual.
+async function activateUserSubscription(user, plan) {
+  const days = PLAN_DAYS[plan] || PLAN_DAYS.monthly;
+  const current = user.subscription_ends_at ? new Date(user.subscription_ends_at) : null;
+  const base = current && current > new Date() ? current : new Date();
+  base.setDate(base.getDate() + days);
+
+  const { data, error } = await supabase
+    .from('users')
+    .update({
+      plan,
+      subscription_ends_at: base.toISOString(),
+      pending_billing_id: null,
+      pending_plan: null,
+    })
+    .eq('id', user.id)
+    .select('id, plan, subscription_ends_at')
+    .single();
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+// Ativa via billing id (caminho principal do webhook — mais confiável).
+async function activateSubscriptionByBillingId(billingId) {
+  if (!billingId) return null;
+  const { data: user } = await supabase
+    .from('users')
+    .select('id, plan, subscription_ends_at, pending_plan')
+    .eq('pending_billing_id', billingId)
+    .maybeSingle();
+  if (!user) return null;
+  return activateUserSubscription(user, user.pending_plan || 'monthly');
+}
+
+// Ativa via email (fallback do webhook caso o billing id não bata).
+async function activateSubscriptionByEmail(email, plan) {
+  if (!email) return null;
+  const { data: user } = await supabase
+    .from('users')
+    .select('id, plan, subscription_ends_at')
+    .ilike('email', email.trim())
+    .maybeSingle();
+  if (!user) return null;
+  return activateUserSubscription(user, plan || 'monthly');
 }
 
 async function createTransaction(userId, parsed) {
   const installments = Math.max(1, parseInt(parsed.installments) || 1);
-  const perAmount = Number(parsed.amount);
+  const currentInstallment = Math.max(1, Math.min(parseInt(parsed.current_installment) || 1, installments));
+  let perAmount = Number(parsed.amount);
   const type = parsed.type || 'despesa';
+
+  // Ao informar crédito sem parcelas ou com valor total, ajusta o valor por parcela.
+  if (parsed.payment_method === 'cartão_crédito' && installments > 1 && (!parsed.installments || parsed.installments === 1)) {
+    perAmount = Number((Number(parsed.amount) / installments).toFixed(2));
+  }
 
   // Mês inicial: usa start_date ("YYYY-MM") se vier; senão o mês atual.
   let startDate;
@@ -79,15 +224,16 @@ async function createTransaction(userId, parsed) {
     return data;
   }
 
-  // Parcelado → uma linha por mês, cada uma com o valor da parcela
+  // Parcelado → uma linha por mês a partir da parcela atual.
   const rows = [];
-  for (let i = 0; i < installments; i++) {
+  const firstIndex = Math.max(1, currentInstallment);
+  for (let installmentIndex = firstIndex; installmentIndex <= installments; installmentIndex++) {
     const d = new Date(startDate);
-    d.setMonth(d.getMonth() + i);
+    d.setMonth(d.getMonth() + (installmentIndex - firstIndex));
     rows.push({
       user_id: userId,
       amount: perAmount,
-      description: `${parsed.description} (${i + 1}/${installments})`,
+      description: `${parsed.description} (${installmentIndex}/${installments})`,
       category: parsed.category,
       payment_method: parsed.payment_method,
       installments,
@@ -437,7 +583,7 @@ const RECURRENCE_INTERVALS = { mensal: 1, bimestral: 2, trimestral: 3, semestral
 // Cria ocorrências de uma despesa recorrente.
 // Configurável: tipo (mensal..anual), data de início e data de fim (opcional).
 // Sem fim → gera `occurrences` ocorrências (padrão 12). Compat: `months` ainda funciona.
-async function createFixedExpense(userId, { description, amount, category, recurrence_type, start_date, end_date, occurrences, months }) {
+async function createFixedExpense(userId, { description, amount, category, recurrence_type, start_date, end_date, occurrences, months, payment_method = 'fixo' }) {
   const value = Number(amount);
   const interval = RECURRENCE_INTERVALS[recurrence_type] || 1;
 
@@ -471,7 +617,7 @@ async function createFixedExpense(userId, { description, amount, category, recur
       amount: value,
       description,
       category: category || 'outros',
-      payment_method: 'fixo',
+      payment_method,
       installments: 1,
       type: 'despesa',
       date: d.toISOString(),
@@ -483,6 +629,20 @@ async function createFixedExpense(userId, { description, amount, category, recur
   const { data, error } = await supabase.from('transactions').insert(rows).select();
   if (error) throw new Error(`Erro ao criar gasto fixo: ${error.message}`);
   return { created: data.length };
+}
+
+async function createSubscription(userId, { description, amount, category, recurrence_type, start_date, end_date, occurrences, months }) {
+  return createFixedExpense(userId, {
+    description,
+    amount,
+    category,
+    recurrence_type,
+    start_date,
+    end_date,
+    occurrences,
+    months,
+    payment_method: 'assinatura',
+  });
 }
 
 // Lista recorrentes: grupos (descrição+valor) que aparecem em >= 2 meses.
@@ -596,4 +756,4 @@ async function getUpcoming(userId, months = 6) {
   }));
 }
 
-module.exports = { findOrCreateUserByGoogleId, findOrCreateUserByTelegramId, createTransaction, updateTransaction, getSummary, getLastTransactions, getMonthlyHistory, getBudgetStatus, getInvestmentSummary, detectSubscriptions, getUserProfile, linkTelegramToUser, createFixedExpense, getRecurring, endRecurring, getUpcoming, resetUserFinances };
+module.exports = { findOrCreateUserByGoogleId, findOrCreateUserByTelegramId, createTransaction, updateTransaction, getSummary, getLastTransactions, getMonthlyHistory, getBudgetStatus, getInvestmentSummary, detectSubscriptions, getUserProfile, linkTelegramToUser, createFixedExpense, createSubscription, getRecurring, endRecurring, getUpcoming, resetUserFinances, isEmailWhitelisted, getUserAccessStatus, setPendingBilling, activateSubscriptionByBillingId, activateSubscriptionByEmail };

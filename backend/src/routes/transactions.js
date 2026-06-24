@@ -1,9 +1,18 @@
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const supabase = require('../config/supabase');
 const { parseTransaction } = require('../services/aiParser');
 const { createTransaction, updateTransaction, getSummary, getLastTransactions, getMonthlyHistory } = require('../services/transactionService');
 
 const router = express.Router();
+
+// Limiter para IA (POST /transactions chama OpenAI/Groq)
+const aiLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hora
+  max: 30, // 30 requisições por IP
+  standardHeaders: true,
+  skip: (req) => !req.ip,
+});
 
 router.get('/', async (req, res) => {
   try {
@@ -44,18 +53,44 @@ router.get('/summary', async (req, res) => {
   }
 });
 
-router.post('/', async (req, res) => {
+router.post('/preview', aiLimiter, async (req, res) => {
   try {
     const { message } = req.body;
+    if (!message) {
+      return res.status(400).json({ error: 'message obrigatória' });
+    }
+
+    const parsed = await parseTransaction(message);
+    if (parsed.error) {
+      return res.status(400).json({ error: parsed.error });
+    }
+
+    res.json(parsed);
+  } catch (err) {
+    console.error('Erro POST /transactions/preview:', err);
+    const detail = err?.response?.data?.error?.message || err?.message || 'erro desconhecido';
+    res.status(500).json({ error: `Erro ao pré-processar transação: ${detail}` });
+  }
+});
+
+router.post('/', aiLimiter, async (req, res) => {
+  try {
+    const { message, installments, current_installment } = req.body;
 
     if (!message) {
       return res.status(400).json({ error: 'message obrigatória' });
     }
 
     const parsed = await parseTransaction(message);
-
     if (parsed.error) {
       return res.status(400).json({ error: parsed.error });
+    }
+
+    if (installments !== undefined) {
+      parsed.installments = Number(installments);
+    }
+    if (current_installment !== undefined) {
+      parsed.current_installment = Number(current_installment);
     }
 
     const transaction = await createTransaction(req.userId, parsed);
