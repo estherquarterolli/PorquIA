@@ -109,6 +109,12 @@ export interface BankConnectResult {
   skipped: number;
 }
 
+export interface BillingStatus {
+  plan: 'free' | 'pro';
+  status: 'active' | 'trialing' | 'canceled' | 'past_due' | 'inactive';
+  current_period_end: string | null;
+}
+
 class ApiClient {
   private async getToken(): Promise<string> {
     const user = auth.currentUser;
@@ -259,6 +265,18 @@ class ApiClient {
 
   async importStatement(content: string, filename: string): Promise<{ found: number; imported: number; skipped: number }> {
     return this.request('POST', '/api/banks/import', { content, filename });
+  }
+
+  async getBillingStatus(): Promise<BillingStatus> {
+    return this.request('GET', '/api/billing/status');
+  }
+
+  async createCheckoutSession(): Promise<{ url: string }> {
+    return this.request('POST', '/api/billing/checkout');
+  }
+
+  async openBillingPortal(): Promise<{ url: string }> {
+    return this.request('POST', '/api/billing/portal');
   }
 }
 

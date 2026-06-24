@@ -12,6 +12,7 @@ const subscriptionsRouter = require('./routes/subscriptions');
 const usersRouter = require('./routes/users');
 const recurringRouter = require('./routes/recurring');
 const banksRouter = require('./routes/banks');
+const { billingRouter, stripeWebhookHandler } = require('./routes/billing');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -40,9 +41,8 @@ app.use(
       if (!origin || allowedOrigins.includes('*') || allowedOrigins.includes(normalize(origin))) {
         return cb(null, true);
       }
-      // Rede de segurança: libera qualquer deploy do projeto no Render
-      // (assim funciona mesmo se CORS_ORIGIN estiver com valor errado/desatualizado).
-      if (/\.onrender\.com$/.test(normalize(origin))) {
+            // Libera deploys no Render e Vercel automaticamente
+      if (/\.onrender\.com$/.test(normalize(origin)) || /\.vercel\.app$/.test(normalize(origin))) {
         return cb(null, true);
       }
       console.warn(`⚠️  CORS bloqueou origem: ${origin}. Permitidas: ${allowedOrigins.join(', ')}`);
@@ -57,12 +57,19 @@ app.use(express.json({ limit: '5mb' })); // extratos OFX/CSV podem passar de 100
 // (e isso acorda o serviço). Localmente caímos no long polling.
 const bot = process.env.DISABLE_TELEGRAM === 'true' ? null : createBot();
 const TELEGRAM_HOOK_PATH = '/telegram-webhook';
-const telegramDomain = process.env.RENDER_EXTERNAL_URL || process.env.PUBLIC_URL;
+const railwayDomain = process.env.RAILWAY_PUBLIC_DOMAIN;
+const telegramDomain =
+  process.env.RENDER_EXTERNAL_URL ||
+  (railwayDomain ? `https://${railwayDomain}` : null) ||
+  process.env.PUBLIC_URL;
 
 if (bot && telegramDomain) {
   // Registra o handler do webhook antes das rotas/erro
   app.use(bot.webhookCallback(TELEGRAM_HOOK_PATH));
 }
+
+// Stripe webhook: raw body ANTES do express.json global
+app.post('/api/billing/webhook', express.raw({ type: 'application/json' }), stripeWebhookHandler);
 
 // Sprint 12 — health aprimorado
 app.get('/health', async (req, res) => {
@@ -93,6 +100,7 @@ app.use('/api/subscriptions', authMiddleware, subscriptionsRouter);
 app.use('/api/users',         authMiddleware, usersRouter);
 app.use('/api/recurring',     authMiddleware, recurringRouter);
 app.use('/api/banks',         authMiddleware, banksRouter);
+app.use('/api/billing',       authMiddleware, billingRouter);
 
 // Sprint 12 — error handler global
 app.use((err, req, res, _next) => {

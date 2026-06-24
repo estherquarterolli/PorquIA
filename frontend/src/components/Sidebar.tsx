@@ -21,6 +21,7 @@ import {
   CalendarCheck,
   CalendarClock,
   Landmark,
+  Zap,
 } from 'lucide-react';
 
 const LINKS = [
@@ -33,6 +34,7 @@ const LINKS = [
   { href: '/banks',         Icon: Landmark,        label: 'Importar Extrato' },
   { href: '/subscriptions', Icon: Repeat,          label: 'Assinaturas' },
   { href: '/settings',      Icon: Settings,        label: 'Configurações' },
+  { href: '/planos',        Icon: Zap,             label: 'Planos' },
 ];
 
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
