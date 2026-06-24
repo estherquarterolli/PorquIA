@@ -37,14 +37,14 @@ export default function PlanosPage() {
   useEffect(() => {
     api.getBillingStatus()
       .then(setBilling)
-      .catch(() => setBilling({ plan: 'free', status: 'inactive', current_period_end: null }))
+      .catch(() => setBilling({ email: '', plan: 'inactive', trial_ends_at: null, subscription_ends_at: null, active: false }))
       .finally(() => setLoading(false));
   }, []);
 
   async function handleCheckout() {
     setActionLoading(true);
     try {
-      const { url } = await api.createCheckoutSession();
+      const { url } = await api.createCheckout('monthly');
       window.location.href = url;
     } catch {
       alert('Erro ao abrir pagamento. Tente novamente.');
@@ -53,17 +53,11 @@ export default function PlanosPage() {
   }
 
   async function handlePortal() {
-    setActionLoading(true);
-    try {
-      const { url } = await api.openBillingPortal();
-      window.location.href = url;
-    } catch {
-      alert('Erro ao abrir portal. Tente novamente.');
-      setActionLoading(false);
-    }
+    // Redireciona para o suporte enquanto não há portal self-service
+    window.open('mailto:suporte@porquia.app', '_blank');
   }
 
-  const isPro = billing?.plan === 'pro' && billing?.status === 'active';
+  const isPro = (billing?.plan === 'monthly' || billing?.plan === 'annual') && billing?.active === true;
 
   return (
     <div className="py-2">
@@ -98,9 +92,9 @@ export default function PlanosPage() {
                 </span>
                 {isPro && <Zap className="w-4 h-4 text-fuchsia-500" fill="currentColor" />}
               </div>
-              {isPro && billing.current_period_end && (
+              {isPro && billing.subscription_ends_at && (
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                  Renova em {new Date(billing.current_period_end).toLocaleDateString('pt-BR')}
+                  Renova em {new Date(billing.subscription_ends_at).toLocaleDateString('pt-BR')}
                 </p>
               )}
             </div>
