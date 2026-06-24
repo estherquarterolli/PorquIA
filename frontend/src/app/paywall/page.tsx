@@ -38,8 +38,8 @@ export default function PaywallPage() {
     setCheckingOut(plan);
     setError(null);
     try {
-      const { payment_url } = await api.createCheckout(plan);
-      window.location.href = payment_url;
+      const { url } = await api.createCheckout(plan);
+      window.location.href = url;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao iniciar pagamento');
       setCheckingOut(null);
