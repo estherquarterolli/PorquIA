@@ -9,24 +9,35 @@ import { UserAvatar } from './UserAvatar';
 import { NotificationsBell } from './NotificationsBell';
 import { BetaNotice } from './BetaNotice';
 import { TutorialModal, TutorialStep } from './TutorialModal';
-import { Menu, X, Search } from 'lucide-react';
+import {
+  Menu, X, Search,
+  LayoutDashboard, BarChart2, Sparkles,
+  PenLine, Zap, Pencil, Download,
+  Target, TrendingUp, Bell,
+  RefreshCw, CalendarDays,
+  Building2, Upload, CheckCircle,
+  BarChart3,
+  ScanSearch, Lightbulb,
+  CalendarRange,
+  Smartphone, Settings,
+} from 'lucide-react';
 
 const TUTORIALS: Record<string, { title: string; steps: TutorialStep[] }> = {
   '/dashboard': {
     title: 'Dashboard',
     steps: [
       {
-        icon: '💰',
+        icon: LayoutDashboard,
         title: 'Visão Geral das Finanças',
         description: 'Aqui você vê um resumo completo: saldo total, entradas e saídas do mês atual, tudo atualizado em tempo real.',
       },
       {
-        icon: '📊',
+        icon: BarChart2,
         title: 'Gráficos Interativos',
         description: 'Os gráficos mostram o histórico dos seus gastos por categoria e a evolução ao longo do tempo.',
       },
       {
-        icon: '🤖',
+        icon: Sparkles,
         title: 'Insights com IA',
         description: 'Nossa IA analisa seus dados e gera insights personalizados sobre seus hábitos financeiros automaticamente.',
       },
@@ -36,22 +47,22 @@ const TUTORIALS: Record<string, { title: string; steps: TutorialStep[] }> = {
     title: 'Transações',
     steps: [
       {
-        icon: '✍️',
+        icon: PenLine,
         title: 'Adicionar com Linguagem Natural',
         description: 'Clique em "Nova Transação" e descreva em linguagem natural. Exemplo: "gastei 50 reais no mercado no cartão".',
       },
       {
-        icon: '🧠',
+        icon: Zap,
         title: 'Parser Inteligente',
         description: 'Nossa IA interpreta automaticamente o valor, categoria e forma de pagamento — sem precisar preencher campos.',
       },
       {
-        icon: '✏️',
+        icon: Pencil,
         title: 'Editar e Excluir',
         description: 'Clique nos ícones de lápis ou lixeira na linha da transação para editar descrição, categoria ou remover.',
       },
       {
-        icon: '📥',
+        icon: Download,
         title: 'Exportar para Excel',
         description: 'Use o botão de exportação para baixar suas transações em CSV, compatível com Excel e Google Sheets.',
       },
@@ -61,17 +72,17 @@ const TUTORIALS: Record<string, { title: string; steps: TutorialStep[] }> = {
     title: 'Orçamentos',
     steps: [
       {
-        icon: '🎯',
+        icon: Target,
         title: 'Crie Limites por Categoria',
         description: 'Defina um teto de gastos mensais por categoria. Exemplo: Alimentação → R$ 500, Lazer → R$ 200.',
       },
       {
-        icon: '📈',
+        icon: TrendingUp,
         title: 'Acompanhe em Tempo Real',
         description: 'A barra de progresso mostra quanto você já gastou. Ela muda de cor conforme se aproxima do limite.',
       },
       {
-        icon: '🔔',
+        icon: Bell,
         title: 'Alertas Automáticos',
         description: 'Ao atingir 80% do orçamento de uma categoria, você recebe um aviso automático pelo Telegram.',
       },
@@ -81,12 +92,12 @@ const TUTORIALS: Record<string, { title: string; steps: TutorialStep[] }> = {
     title: 'Gastos Fixos',
     steps: [
       {
-        icon: '🔄',
+        icon: RefreshCw,
         title: 'Cadastre Gastos Recorrentes',
         description: 'Registre despesas fixas mensais como aluguel, academia e streaming. Elas são lançadas automaticamente todo mês.',
       },
       {
-        icon: '📅',
+        icon: CalendarDays,
         title: 'Projeção Automática',
         description: 'Com os gastos fixos cadastrados, você vê quanto já está comprometido antes mesmo de chegar o mês.',
       },
@@ -96,17 +107,17 @@ const TUTORIALS: Record<string, { title: string; steps: TutorialStep[] }> = {
     title: 'Importar Extrato',
     steps: [
       {
-        icon: '🏦',
+        icon: Building2,
         title: 'Exporte do Seu Banco',
         description: 'Acesse o app ou internet banking e exporte o extrato no formato OFX ou CSV.',
       },
       {
-        icon: '📤',
+        icon: Upload,
         title: 'Faça o Upload',
         description: 'Arraste o arquivo para a área indicada ou clique para selecionar. O sistema processa tudo automaticamente.',
       },
       {
-        icon: '✅',
+        icon: CheckCircle,
         title: 'Confirme as Transações',
         description: 'Revise as transações importadas antes de salvar. Você pode editar categorias e descrições.',
       },
@@ -116,12 +127,12 @@ const TUTORIALS: Record<string, { title: string; steps: TutorialStep[] }> = {
     title: 'Investimentos',
     steps: [
       {
-        icon: '📈',
+        icon: TrendingUp,
         title: 'Registre seus Ativos',
         description: 'Adicione seus investimentos (ações, fundos, cripto, renda fixa) para acompanhar tudo em um só lugar.',
       },
       {
-        icon: '💹',
+        icon: BarChart3,
         title: 'Acompanhe a Rentabilidade',
         description: 'Visualize o retorno total e mensal de cada ativo e a evolução do seu patrimônio ao longo do tempo.',
       },
@@ -131,12 +142,12 @@ const TUTORIALS: Record<string, { title: string; steps: TutorialStep[] }> = {
     title: 'Assinaturas',
     steps: [
       {
-        icon: '🔍',
+        icon: ScanSearch,
         title: 'Detecção Automática',
         description: 'O PorquIA detecta automaticamente cobranças recorrentes nas suas transações (Netflix, Spotify, etc.).',
       },
       {
-        icon: '💡',
+        icon: Lightbulb,
         title: 'Identifique o que Cancelar',
         description: 'Veja o total mensal em assinaturas e identifique serviços que você já não usa tanto.',
       },
@@ -146,7 +157,7 @@ const TUTORIALS: Record<string, { title: string; steps: TutorialStep[] }> = {
     title: 'Próximos Meses',
     steps: [
       {
-        icon: '🔮',
+        icon: CalendarRange,
         title: 'Projeção Financeira',
         description: 'Veja uma estimativa dos gastos para os próximos meses com base nos gastos fixos cadastrados e histórico.',
       },
@@ -156,12 +167,12 @@ const TUTORIALS: Record<string, { title: string; steps: TutorialStep[] }> = {
     title: 'Configurações',
     steps: [
       {
-        icon: '📱',
+        icon: Smartphone,
         title: 'Vincule seu Telegram',
         description: 'Copie seu ID único e envie para o bot no Telegram. Assim você lança transações por mensagem, sem abrir o app!',
       },
       {
-        icon: '⚙️',
+        icon: Settings,
         title: 'Gerencie sua Conta',
         description: 'Aqui você encontra configurações de perfil, plano de assinatura e opções avançadas como reset de dados.',
       },

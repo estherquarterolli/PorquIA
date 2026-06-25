@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, ChevronLeft, ChevronRight, Check } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Check, LucideIcon } from 'lucide-react';
 
 export interface TutorialStep {
-  icon: string;
+  icon: LucideIcon;
   title: string;
   description: string;
 }
@@ -27,6 +27,7 @@ export function TutorialModal({ pageKey, pageTitle, steps, isOpen, onClose }: Tu
   if (!isOpen || steps.length === 0) return null;
 
   const step = steps[currentStep];
+  const StepIcon = step.icon;
   const isLast = currentStep === steps.length - 1;
 
   const handleClose = () => {
@@ -71,7 +72,9 @@ export function TutorialModal({ pageKey, pageTitle, steps, isOpen, onClose }: Tu
 
       {/* Content */}
       <div className="px-4 pb-3 flex gap-3 items-start">
-        <span className="text-3xl leading-none shrink-0">{step.icon}</span>
+        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-fuchsia-500 to-pink-500 flex items-center justify-center shrink-0">
+          <StepIcon className="w-4.5 h-4.5 text-white" style={{ width: 18, height: 18 }} />
+        </div>
         <div>
           <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-1">{step.title}</h3>
           <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
