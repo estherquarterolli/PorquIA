@@ -18,7 +18,7 @@ const geistMono = Geist_Mono({
 import { ThemeProvider } from "@/components/ThemeProvider";
 
 export const metadata: Metadata = {
-  title: "PorquIA - Rastreador Financeiro",
+  title: "PorquIA - Seu Agente Financeiro",
   description: "Seu assistente de finanças pessoais com IA",
   icons: {
     icon: "/logo-porquia.png",
