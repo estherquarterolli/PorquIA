@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { api } from '@/lib/api';
+import Image from 'next/image';
 import {
   Sparkles, MessageCircle, CreditCard, RefreshCw, BarChart3,
   FileText, Check, ArrowRight, Zap,
@@ -61,8 +62,8 @@ export default function Home() {
         {/* Navbar */}
         <header className="max-w-6xl mx-auto px-6 py-6 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 bg-gradient-to-br from-fuchsia-500 to-pink-600 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-pink-500/30">
-              P
+            <div className="w-10 h-10 rounded-xl overflow-hidden shadow-lg shadow-pink-500/30 shrink-0">
+              <Image src="/logo-porquia.png" alt="PorquIA" width={40} height={40} className="object-cover" />
             </div>
             <span className="text-xl font-bold text-slate-900 dark:text-white">PorquIA</span>
           </div>
@@ -166,7 +167,7 @@ export default function Home() {
                 <span className="text-white/70 mb-1">/ano</span>
               </div>
               <p className="text-sm text-white/80 mb-6">
-                <span className="line-through opacity-70">R$ 238,80</span> · equivale a R$ 14,99/mês
+                <span className="line-through opacity-70">R$ 238,80</span> · equivale a R$ 14,99/mês · parcele em até 12x no cartão
               </p>
               <ul className="space-y-3 mb-8 flex-1">
                 {PLAN_FEATURES.map((feat) => (
