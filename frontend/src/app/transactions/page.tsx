@@ -723,8 +723,12 @@ function EditModal({
     const value = parseFloat(amount.replace(',', '.'));
     const tot = parseInt(installments);
     const cur = parseInt(currentInstallment);
-    if (!description.trim() || isNaN(value) || value <= 0) {
-      setError('Preencha um nome e um valor válido.');
+    if (!description.trim()) {
+      setError('Preencha o nome da transação.');
+      return;
+    }
+    if (!amount.trim() || isNaN(value) || value <= 0) {
+      setError('Informe um valor válido maior que zero.');
       return;
     }
     if (isParcelado && (cur < 1 || cur > tot)) {

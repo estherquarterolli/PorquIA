@@ -106,50 +106,79 @@ router.put('/:id', async (req, res) => {
   try {
     const { amount, description, category, type, payment_method, installments, current_installment } = req.body;
 
-    // Se veio com parcelas, deleta as parcelas futuras e recria
-    if (installments && installments > 1 && current_installment) {
-      const { data: tx } = await supabase
+    if (amount !== undefined && (isNaN(Number(amount)) || Number(amount) <= 0)) {
+      return res.status(400).json({ error: 'Valor inválido. Informe um valor maior que zero.' });
+    }
+
+    const { data: tx } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('id', req.params.id)
+      .eq('user_id', req.userId)
+      .single();
+
+    if (!tx) return res.status(404).json({ error: 'Transação não encontrada' });
+
+    const baseDesc = (description || tx.description).replace(/\s*\(\d+\/\d+\)$/, '');
+    const isParcelado = (installments && installments > 1 && current_installment) || tx.installments > 1;
+
+    if (isParcelado) {
+      const tot = installments || tx.installments;
+      const cur = current_installment || 1;
+      const perAmount = amount !== undefined ? Number(amount) : tx.amount;
+
+      // Atualiza todas as parcelas existentes com o novo valor/categoria/método
+      const { data: irmans } = await supabase
         .from('transactions')
-        .select('*')
-        .eq('id', req.params.id)
+        .select('id, description, date')
         .eq('user_id', req.userId)
-        .single();
+        .ilike('description', `${baseDesc} (%/%)`);
 
-      if (!tx) return res.status(404).json({ error: 'Transação não encontrada' });
+      if (irmans?.length) {
+        await supabase
+          .from('transactions')
+          .update({
+            amount: perAmount,
+            ...(category && { category }),
+            ...(type && { type }),
+            ...(payment_method && { payment_method }),
+            installments: tot,
+          })
+          .in('id', irmans.map((r) => r.id));
+      }
 
-      // Deleta parcelas futuras com a mesma descrição base
-      const baseDesc = (description || tx.description).replace(/\s*\(\d+\/\d+\)$/, '');
+      // Deleta parcelas futuras para recriar com nova numeração
       const today = new Date();
       today.setDate(1);
       await supabase
         .from('transactions')
         .delete()
         .eq('user_id', req.userId)
-        .ilike('description', `${baseDesc} (%/%`)
+        .ilike('description', `${baseDesc} (%/%)`)
         .gte('date', today.toISOString())
         .neq('id', req.params.id);
 
-      // Atualiza a transação atual
+      // Atualiza parcela atual
       const data = await updateTransaction(req.userId, req.params.id, {
-        amount, description: `${baseDesc} (${current_installment}/${installments})`,
-        category, type, payment_method, installments,
+        amount: perAmount,
+        description: `${baseDesc} (${cur}/${tot})`,
+        category, type, payment_method, installments: tot,
       });
 
-      // Cria parcelas futuras
-      const perAmount = amount || tx.amount;
+      // Recria parcelas futuras
       const rows = [];
-      for (let i = current_installment + 1; i <= installments; i++) {
+      for (let i = cur + 1; i <= tot; i++) {
         const d = new Date();
         d.setDate(1);
-        d.setMonth(d.getMonth() + (i - current_installment));
+        d.setMonth(d.getMonth() + (i - cur));
         rows.push({
           user_id: req.userId,
           amount: perAmount,
-          description: `${baseDesc} (${i}/${installments})`,
+          description: `${baseDesc} (${i}/${tot})`,
           category: category || tx.category,
           payment_method: payment_method || tx.payment_method,
           type: type || tx.type,
-          installments,
+          installments: tot,
           date: d.toISOString(),
         });
       }
