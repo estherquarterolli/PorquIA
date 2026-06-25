@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
@@ -55,8 +56,8 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         onClick={onNavigate}
         className="flex items-center gap-3 px-6 py-6"
       >
-        <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-fuchsia-500 via-pink-500 to-rose-500 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-pink-500/30">
-          P
+        <div className="w-11 h-11 rounded-2xl overflow-hidden shadow-lg shadow-pink-500/30 shrink-0">
+          <Image src="/logo-porquia.png" alt="PorquIA" width={44} height={44} className="object-cover" />
         </div>
         <div>
           <p className="font-bold text-slate-900 dark:text-white text-base leading-tight">PorquIA</p>

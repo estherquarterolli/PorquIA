@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
@@ -29,8 +30,8 @@ export function Sidebar() {
   return (
     <aside className="fixed bottom-0 lg:left-0 lg:top-0 w-full lg:w-20 lg:h-screen bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border-t lg:border-t-0 lg:border-r border-gray-100 dark:border-zinc-800 shadow-sm z-50 flex lg:flex-col items-center py-4 lg:py-8 justify-around lg:justify-start px-4 lg:px-0">
       {/* Logo */}
-      <div className="hidden lg:flex w-11 h-11 rounded-2xl bg-gradient-to-br from-violet-600 via-blue-600 to-cyan-500 items-center justify-center text-white font-bold text-xl mb-12 shadow-lg shadow-violet-600/40">
-        P
+      <div className="hidden lg:flex w-11 h-11 rounded-2xl overflow-hidden mb-12 shadow-lg shadow-pink-500/30 shrink-0">
+        <Image src="/logo-porquia.png" alt="PorquIA" width={44} height={44} className="object-cover" />
       </div>
 
       {/* Nav Links */}

@@ -20,6 +20,10 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 export const metadata: Metadata = {
   title: "PorquIA - Rastreador Financeiro",
   description: "Seu assistente de finanças pessoais com IA",
+  icons: {
+    icon: "/logo-porquia.png",
+    apple: "/logo-porquia.png",
+  },
 };
 
 export default function RootLayout({
