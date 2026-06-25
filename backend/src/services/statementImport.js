@@ -99,6 +99,15 @@ function findColumn(headers, candidates) {
   return -1;
 }
 
+// Determina se um texto indica débito (despesa) ou crédito (receita)
+function classifyTypeFromText(raw) {
+  if (!raw) return null;
+  const s = raw.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  if (/deb[ií]to|debito|saida|saída|pagamento|compra|saque|transfer[eê]ncia enviada|ted enviado|doc enviado/.test(s)) return 'despesa';
+  if (/cr[eé]dito|credito|entrada|recebimento|depósito|deposito|pix recebido|ted recebido/.test(s)) return 'receita';
+  return null;
+}
+
 function parseCSV(text) {
   const lines = text.split(/\r?\n/).filter((l) => l.trim());
   if (lines.length < 2) return [];
@@ -106,8 +115,15 @@ function parseCSV(text) {
   const headers = splitCSVLine(lines[0], delim);
 
   const iDate = findColumn(headers, ['data', 'date']);
-  const iDesc = findColumn(headers, ['descri', 'histór', 'histor', 'description', 'memo', 'lançamento', 'lancamento']);
+  const iDesc = findColumn(headers, ['descri', 'histór', 'histor', 'description', 'memo', 'lançamento', 'lancamento', 'estabelecimento']);
   const iAmount = findColumn(headers, ['valor', 'amount', 'value']);
+
+  // Colunas separadas de débito e crédito (ex: Nubank, Inter, Bradesco)
+  const iDebit = findColumn(headers, ['débito', 'debito', 'saída', 'saida', 'debit']);
+  const iCredit = findColumn(headers, ['crédito', 'credito', 'entrada', 'credit']);
+
+  // Coluna de tipo/natureza (ex: "Tipo", "Natureza", "Tipo Lançamento")
+  const iType = findColumn(headers, ['tipo', 'natureza', 'modalidade', 'tipo lançamento', 'tipo lancamento']);
 
   // Sem cabeçalho reconhecível → assume [data, descrição, valor]
   const cDate = iDate >= 0 ? iDate : 0;
@@ -117,14 +133,41 @@ function parseCSV(text) {
   const transactions = [];
   for (let i = 1; i < lines.length; i++) {
     const cols = splitCSVLine(lines[i], delim);
-    if (cols.length <= cAmount) continue;
-    const amount = parseAmount(cols[cAmount]);
+
+    let amount = NaN;
+    let type = null;
+
+    // Formato com colunas separadas débito/crédito
+    if (iDebit >= 0 && iCredit >= 0) {
+      const debit = parseAmount(cols[iDebit] || '');
+      const credit = parseAmount(cols[iCredit] || '');
+      if (!isNaN(debit) && debit > 0) { amount = debit; type = 'despesa'; }
+      else if (!isNaN(credit) && credit > 0) { amount = credit; type = 'receita'; }
+    } else {
+      amount = parseAmount(cols[cAmount] || '');
+    }
+
     if (isNaN(amount) || amount === 0) continue;
+
+    // Determina tipo se ainda não definido
+    if (!type) {
+      if (amount < 0) {
+        type = 'despesa';
+      } else if (iType >= 0) {
+        type = classifyTypeFromText(cols[iType]) || 'despesa';
+      } else {
+        // Tenta classificar pela descrição
+        type = classifyTypeFromText(cols[cDesc >= 0 ? cDesc : 1]) || 'despesa';
+      }
+    }
+
+    if (cols.length <= (iDebit >= 0 ? Math.max(iDebit, iCredit) : cAmount)) continue;
+
     transactions.push({
       date: parseCSVDate(cols[cDate]),
-      description: cols[cDesc] || 'Lançamento',
+      description: cols[cDesc >= 0 ? cDesc : 1] || 'Lançamento',
       amount: Math.abs(amount),
-      type: amount < 0 ? 'despesa' : 'receita',
+      type,
       payment_method: 'importado',
     });
   }
