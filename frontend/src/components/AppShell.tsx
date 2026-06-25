@@ -7,7 +7,167 @@ import { api } from '@/lib/api';
 import { Sidebar } from './Sidebar';
 import { UserAvatar } from './UserAvatar';
 import { NotificationsBell } from './NotificationsBell';
+import { BetaNotice } from './BetaNotice';
+import { TutorialModal, TutorialStep } from './TutorialModal';
 import { Menu, X, Search } from 'lucide-react';
+
+const TUTORIALS: Record<string, { title: string; steps: TutorialStep[] }> = {
+  '/dashboard': {
+    title: 'Dashboard',
+    steps: [
+      {
+        icon: '💰',
+        title: 'Visão Geral das Finanças',
+        description: 'Aqui você vê um resumo completo: saldo total, entradas e saídas do mês atual, tudo atualizado em tempo real.',
+      },
+      {
+        icon: '📊',
+        title: 'Gráficos Interativos',
+        description: 'Os gráficos mostram o histórico dos seus gastos por categoria e a evolução ao longo do tempo.',
+      },
+      {
+        icon: '🤖',
+        title: 'Insights com IA',
+        description: 'Nossa IA analisa seus dados e gera insights personalizados sobre seus hábitos financeiros automaticamente.',
+      },
+    ],
+  },
+  '/transactions': {
+    title: 'Transações',
+    steps: [
+      {
+        icon: '✍️',
+        title: 'Adicionar com Linguagem Natural',
+        description: 'Clique em "Nova Transação" e descreva em linguagem natural. Exemplo: "gastei 50 reais no mercado no cartão".',
+      },
+      {
+        icon: '🧠',
+        title: 'Parser Inteligente',
+        description: 'Nossa IA interpreta automaticamente o valor, categoria e forma de pagamento — sem precisar preencher campos.',
+      },
+      {
+        icon: '✏️',
+        title: 'Editar e Excluir',
+        description: 'Clique nos ícones de lápis ou lixeira na linha da transação para editar descrição, categoria ou remover.',
+      },
+      {
+        icon: '📥',
+        title: 'Exportar para Excel',
+        description: 'Use o botão de exportação para baixar suas transações em CSV, compatível com Excel e Google Sheets.',
+      },
+    ],
+  },
+  '/budgets': {
+    title: 'Orçamentos',
+    steps: [
+      {
+        icon: '🎯',
+        title: 'Crie Limites por Categoria',
+        description: 'Defina um teto de gastos mensais por categoria. Exemplo: Alimentação → R$ 500, Lazer → R$ 200.',
+      },
+      {
+        icon: '📈',
+        title: 'Acompanhe em Tempo Real',
+        description: 'A barra de progresso mostra quanto você já gastou. Ela muda de cor conforme se aproxima do limite.',
+      },
+      {
+        icon: '🔔',
+        title: 'Alertas Automáticos',
+        description: 'Ao atingir 80% do orçamento de uma categoria, você recebe um aviso automático pelo Telegram.',
+      },
+    ],
+  },
+  '/recurring': {
+    title: 'Gastos Fixos',
+    steps: [
+      {
+        icon: '🔄',
+        title: 'Cadastre Gastos Recorrentes',
+        description: 'Registre despesas fixas mensais como aluguel, academia e streaming. Elas são lançadas automaticamente todo mês.',
+      },
+      {
+        icon: '📅',
+        title: 'Projeção Automática',
+        description: 'Com os gastos fixos cadastrados, você vê quanto já está comprometido antes mesmo de chegar o mês.',
+      },
+    ],
+  },
+  '/banks': {
+    title: 'Importar Extrato',
+    steps: [
+      {
+        icon: '🏦',
+        title: 'Exporte do Seu Banco',
+        description: 'Acesse o app ou internet banking e exporte o extrato no formato OFX ou CSV.',
+      },
+      {
+        icon: '📤',
+        title: 'Faça o Upload',
+        description: 'Arraste o arquivo para a área indicada ou clique para selecionar. O sistema processa tudo automaticamente.',
+      },
+      {
+        icon: '✅',
+        title: 'Confirme as Transações',
+        description: 'Revise as transações importadas antes de salvar. Você pode editar categorias e descrições.',
+      },
+    ],
+  },
+  '/investments': {
+    title: 'Investimentos',
+    steps: [
+      {
+        icon: '📈',
+        title: 'Registre seus Ativos',
+        description: 'Adicione seus investimentos (ações, fundos, cripto, renda fixa) para acompanhar tudo em um só lugar.',
+      },
+      {
+        icon: '💹',
+        title: 'Acompanhe a Rentabilidade',
+        description: 'Visualize o retorno total e mensal de cada ativo e a evolução do seu patrimônio ao longo do tempo.',
+      },
+    ],
+  },
+  '/subscriptions': {
+    title: 'Assinaturas',
+    steps: [
+      {
+        icon: '🔍',
+        title: 'Detecção Automática',
+        description: 'O PorquIA detecta automaticamente cobranças recorrentes nas suas transações (Netflix, Spotify, etc.).',
+      },
+      {
+        icon: '💡',
+        title: 'Identifique o que Cancelar',
+        description: 'Veja o total mensal em assinaturas e identifique serviços que você já não usa tanto.',
+      },
+    ],
+  },
+  '/upcoming': {
+    title: 'Próximos Meses',
+    steps: [
+      {
+        icon: '🔮',
+        title: 'Projeção Financeira',
+        description: 'Veja uma estimativa dos gastos para os próximos meses com base nos gastos fixos cadastrados e histórico.',
+      },
+    ],
+  },
+  '/settings': {
+    title: 'Configurações',
+    steps: [
+      {
+        icon: '📱',
+        title: 'Vincule seu Telegram',
+        description: 'Copie seu ID único e envie para o bot no Telegram. Assim você lança transações por mensagem, sem abrir o app!',
+      },
+      {
+        icon: '⚙️',
+        title: 'Gerencie sua Conta',
+        description: 'Aqui você encontra configurações de perfil, plano de assinatura e opções avançadas como reset de dados.',
+      },
+    ],
+  },
+};
 
 // Rotas sem autenticação (renderizadas sem o chrome do app)
 const PUBLIC_ROUTES = ['/login', '/', '/terms'];
@@ -31,6 +191,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [tutorialOpen, setTutorialOpen] = useState(false);
+  const currentTutorial = TUTORIALS[pathname];
 
   const isPublic = PUBLIC_ROUTES.includes(pathname);
   const isAuthNoChrome = AUTH_NO_CHROME_ROUTES.includes(pathname);
@@ -67,8 +229,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return () => { cancelled = true; };
   }, [user, loading, needsPlan, pathname, router]);
 
-  // Fecha o drawer ao trocar de rota
-  useEffect(() => setDrawerOpen(false), [pathname]);
+  // Fecha o drawer ao trocar de rota; reseta tutorial ao navegar
+  useEffect(() => {
+    setDrawerOpen(false);
+    setTutorialOpen(false);
+  }, [pathname]);
+
+  // Auto-abre tutorial na primeira visita à página
+  useEffect(() => {
+    if (!currentTutorial || !planActive) return;
+    const seen = localStorage.getItem(`porquia_tutorial_${pathname}`);
+    if (seen) return;
+    const t = setTimeout(() => setTutorialOpen(true), 700);
+    return () => clearTimeout(t);
+  }, [pathname, planActive, currentTutorial]);
 
   if (isPublic) return <>{children}</>;
 
@@ -138,6 +312,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
           <h2 className="text-lg font-bold text-slate-900 dark:text-white">{title}</h2>
 
+          {currentTutorial && (
+            <button
+              onClick={() => setTutorialOpen(true)}
+              title="Ver tutorial desta página"
+              className="w-7 h-7 flex items-center justify-center rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-slate-400 hover:bg-pink-100 hover:text-pink-600 dark:hover:bg-pink-900/30 dark:hover:text-pink-400 transition-colors text-xs font-bold shrink-0"
+            >
+              ?
+            </button>
+          )}
+
           <div className="flex-1" />
 
           {/* Search (desktop) */}
@@ -161,6 +345,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         <main className="flex-1 px-4 lg:px-8 py-6">{children}</main>
       </div>
+
+      <BetaNotice />
+
+      {currentTutorial && (
+        <TutorialModal
+          pageKey={pathname}
+          pageTitle={currentTutorial.title}
+          steps={currentTutorial.steps}
+          isOpen={tutorialOpen}
+          onClose={() => setTutorialOpen(false)}
+        />
+      )}
     </div>
   );
 }
