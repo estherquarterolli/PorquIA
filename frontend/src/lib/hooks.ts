@@ -21,6 +21,12 @@ export function useTransactions() {
     }
   }, []);
 
+  useEffect(() => {
+    const handler = () => fetch();
+    window.addEventListener('transactions-changed', handler);
+    return () => window.removeEventListener('transactions-changed', handler);
+  }, [fetch]);
+
   const create = useCallback(async (message: string, installments?: number, current_installment?: number) => {
     try {
       setError(null);
@@ -54,6 +60,7 @@ export function useTransactions() {
       setError(null);
       await api.deleteTransaction(id);
       setTransactions((prev) => prev.filter((t) => t.id !== id));
+      window.dispatchEvent(new Event('transactions-changed'));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao deletar transação');
       throw err;

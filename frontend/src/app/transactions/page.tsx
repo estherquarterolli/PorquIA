@@ -78,6 +78,7 @@ function buildMonthOptions(transactions: Transaction[]) {
 export default function TransactionsPage() {
   const { transactions, loading, fetch, create, update, remove } = useTransactions();
   const [editing, setEditing] = useState<Transaction | null>(null);
+  const [deleting, setDeleting] = useState<Transaction | null>(null);
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -229,9 +230,14 @@ export default function TransactionsPage() {
     }
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm('Deletar transação?')) return;
-    await remove(id).catch(() => {});
+  async function handleDelete(tx: Transaction) {
+    setDeleting(tx);
+  }
+
+  async function confirmDelete() {
+    if (!deleting) return;
+    await remove(deleting.id).catch(() => {});
+    setDeleting(null);
   }
 
   async function handleSaveEdit(id: string, fields: { description: string; amount: number; type: 'despesa' | 'receita'; category: string; payment_method: string; installments?: number; current_installment?: number }) {
@@ -417,7 +423,7 @@ export default function TransactionsPage() {
                     <Pencil className="w-4 h-4" />
                   </button>
                   <button
-                    onClick={() => handleDelete(tx.id)}
+                    onClick={() => handleDelete(tx)}
                     className="p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
                     title="Deletar"
                   >
@@ -462,6 +468,33 @@ export default function TransactionsPage() {
             }
           }}
         />
+      )}
+
+      {deleting && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setDeleting(null)}>
+          <div className="w-full max-w-sm rounded-3xl bg-white dark:bg-zinc-900 p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex flex-col items-center text-center gap-3 mb-6">
+              <div className="w-14 h-14 rounded-full bg-rose-100 dark:bg-rose-900/30 flex items-center justify-center">
+                <Trash2 className="w-7 h-7 text-rose-500" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">Excluir transação?</h3>
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                <span className="font-semibold text-slate-700 dark:text-slate-200">{deleting.description}</span>
+                <br />
+                {brl(deleting.amount)} · {new Date(deleting.date).toLocaleDateString('pt-BR')}
+              </p>
+              <p className="text-xs text-rose-500">Essa ação não pode ser desfeita.</p>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setDeleting(null)} className="flex-1 py-3 rounded-xl font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all">
+                Cancelar
+              </button>
+              <button onClick={confirmDelete} className="flex-1 py-3 rounded-xl font-bold text-white bg-rose-500 hover:bg-rose-600 transition-all">
+                Excluir
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {editing && (
