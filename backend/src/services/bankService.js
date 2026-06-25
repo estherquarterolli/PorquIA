@@ -190,7 +190,8 @@ async function importTransactions(userId, transactions) {
       description: t.description,
       category: t.category || 'outros',
       payment_method: t.payment_method || null,
-      installments: 1,
+      installments: t.installments || 1,
+      current_installment: t.current_installment || 1,
       type: t.type || 'despesa',
       date: t.date,
     });

@@ -81,12 +81,12 @@ function parseCSVDate(raw) {
 
 function parseAmount(raw) {
   if (!raw) return NaN;
-  // Remove R$, espaços; trata 1.234,56 (pt-BR) e 1,234.56 (en)
-  let s = raw.replace(/[R$\s]/g, '');
+  // Normaliza sinal: "- 250,00" → "-250,00"
+  let s = raw.replace(/\bR\$\s*/g, '').replace(/\-\s+/, '-').trim();
   if (/,\d{2}$/.test(s)) {
-    s = s.replace(/\./g, '').replace(',', '.'); // pt-BR
+    s = s.replace(/\./g, '').replace(',', '.'); // pt-BR: 1.234,56
   } else {
-    s = s.replace(/,/g, ''); // milhares en
+    s = s.replace(/,/g, ''); // milhares en: 1,234.56
   }
   return parseFloat(s);
 }
@@ -108,24 +108,40 @@ function classifyTypeFromText(raw) {
   return null;
 }
 
+// Detecta se o CSV é de cartão de crédito (Nubank style):
+// positivos = despesas, negativos = pagamentos/receitas
+function isCreditCardCSV(headers) {
+  return headers.some((h) => /^title$/i.test(h.trim()));
+}
+
+// Extrai parcela do título Nubank: "Nome - Parcela 5/12" → { desc, current, total }
+function extractInstallmentFromTitle(title) {
+  const m = title.match(/^(.*?)\s*-\s*Parcela\s+(\d+)\/(\d+)\s*$/i);
+  if (m) {
+    return { description: m[1].trim(), current_installment: parseInt(m[2], 10), installments: parseInt(m[3], 10) };
+  }
+  return { description: title, current_installment: 1, installments: 1 };
+}
+
 function parseCSV(text) {
   const lines = text.split(/\r?\n/).filter((l) => l.trim());
   if (lines.length < 2) return [];
   const delim = detectDelimiter(lines[0]);
   const headers = splitCSVLine(lines[0], delim);
 
+  const isCC = isCreditCardCSV(headers);
+
   const iDate = findColumn(headers, ['data', 'date']);
-  const iDesc = findColumn(headers, ['descri', 'histór', 'histor', 'description', 'memo', 'lançamento', 'lancamento', 'estabelecimento']);
+  const iDesc = findColumn(headers, ['descri', 'histór', 'histor', 'description', 'memo', 'lançamento', 'lancamento', 'estabelecimento', 'title']);
   const iAmount = findColumn(headers, ['valor', 'amount', 'value']);
 
-  // Colunas separadas de débito e crédito (ex: Nubank, Inter, Bradesco)
+  // Colunas separadas de débito e crédito (Bradesco, Inter, Santander)
   const iDebit = findColumn(headers, ['débito', 'debito', 'saída', 'saida', 'debit']);
   const iCredit = findColumn(headers, ['crédito', 'credito', 'entrada', 'credit']);
 
-  // Coluna de tipo/natureza (ex: "Tipo", "Natureza", "Tipo Lançamento")
+  // Coluna de tipo/natureza
   const iType = findColumn(headers, ['tipo', 'natureza', 'modalidade', 'tipo lançamento', 'tipo lancamento']);
 
-  // Sem cabeçalho reconhecível → assume [data, descrição, valor]
   const cDate = iDate >= 0 ? iDate : 0;
   const cDesc = iDesc >= 0 ? iDesc : 1;
   const cAmount = iAmount >= 0 ? iAmount : 2;
@@ -151,24 +167,28 @@ function parseCSV(text) {
 
     // Determina tipo se ainda não definido
     if (!type) {
-      if (amount < 0) {
+      if (isCC) {
+        // Cartão de crédito Nubank: positivo = despesa, negativo = receita (pagamento)
+        type = amount < 0 ? 'receita' : 'despesa';
+      } else if (amount < 0) {
         type = 'despesa';
       } else if (iType >= 0) {
         type = classifyTypeFromText(cols[iType]) || 'despesa';
       } else {
-        // Tenta classificar pela descrição
-        type = classifyTypeFromText(cols[cDesc >= 0 ? cDesc : 1]) || 'despesa';
+        type = classifyTypeFromText(cols[cDesc]) || 'despesa';
       }
     }
 
-    if (cols.length <= (iDebit >= 0 ? Math.max(iDebit, iCredit) : cAmount)) continue;
+    const rawDesc = cols[cDesc] || 'Lançamento';
+    const { description, current_installment, installments } = extractInstallmentFromTitle(rawDesc);
 
     transactions.push({
       date: parseCSVDate(cols[cDate]),
-      description: cols[cDesc >= 0 ? cDesc : 1] || 'Lançamento',
+      description,
       amount: Math.abs(amount),
       type,
-      payment_method: 'importado',
+      payment_method: isCC ? 'cartão_crédito' : 'importado',
+      ...(installments > 1 && { installments, current_installment }),
     });
   }
   return transactions;
