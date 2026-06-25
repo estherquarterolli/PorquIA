@@ -104,13 +104,62 @@ router.post('/', aiLimiter, async (req, res) => {
 
 router.put('/:id', async (req, res) => {
   try {
-    const { amount, description, category, type, payment_method } = req.body;
+    const { amount, description, category, type, payment_method, installments, current_installment } = req.body;
+
+    // Se veio com parcelas, deleta as parcelas futuras e recria
+    if (installments && installments > 1 && current_installment) {
+      const { data: tx } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('id', req.params.id)
+        .eq('user_id', req.userId)
+        .single();
+
+      if (!tx) return res.status(404).json({ error: 'Transação não encontrada' });
+
+      // Deleta parcelas futuras com a mesma descrição base
+      const baseDesc = (description || tx.description).replace(/\s*\(\d+\/\d+\)$/, '');
+      const today = new Date();
+      today.setDate(1);
+      await supabase
+        .from('transactions')
+        .delete()
+        .eq('user_id', req.userId)
+        .ilike('description', `${baseDesc} (%/%`)
+        .gte('date', today.toISOString())
+        .neq('id', req.params.id);
+
+      // Atualiza a transação atual
+      const data = await updateTransaction(req.userId, req.params.id, {
+        amount, description: `${baseDesc} (${current_installment}/${installments})`,
+        category, type, payment_method, installments,
+      });
+
+      // Cria parcelas futuras
+      const perAmount = amount || tx.amount;
+      const rows = [];
+      for (let i = current_installment + 1; i <= installments; i++) {
+        const d = new Date();
+        d.setDate(1);
+        d.setMonth(d.getMonth() + (i - current_installment));
+        rows.push({
+          user_id: req.userId,
+          amount: perAmount,
+          description: `${baseDesc} (${i}/${installments})`,
+          category: category || tx.category,
+          payment_method: payment_method || tx.payment_method,
+          type: type || tx.type,
+          installments,
+          date: d.toISOString(),
+        });
+      }
+      if (rows.length) await supabase.from('transactions').insert(rows);
+
+      return res.json({ data });
+    }
+
     const data = await updateTransaction(req.userId, req.params.id, {
-      amount,
-      description,
-      category,
-      type,
-      payment_method,
+      amount, description, category, type, payment_method,
     });
     res.json({ data });
   } catch (err) {

@@ -189,7 +189,7 @@ class ApiClient {
 
   async updateTransaction(
     id: string,
-    fields: { amount?: number; description?: string; category?: string; type?: 'despesa' | 'receita'; payment_method?: string }
+    fields: { amount?: number; description?: string; category?: string; type?: 'despesa' | 'receita'; payment_method?: string; installments?: number; current_installment?: number }
   ): Promise<{ data: Transaction }> {
     return this.request('PUT', `/api/transactions/${id}`, fields);
   }
