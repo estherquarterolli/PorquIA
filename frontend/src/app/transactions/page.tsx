@@ -79,6 +79,8 @@ export default function TransactionsPage() {
   const { transactions, loading, fetch, create, update, remove } = useTransactions();
   const [editing, setEditing] = useState<Transaction | null>(null);
   const [deleting, setDeleting] = useState<Transaction | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [deletingMulti, setDeletingMulti] = useState(false);
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -240,6 +242,24 @@ export default function TransactionsPage() {
     setDeleting(null);
   }
 
+  function toggleSelect(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll(ids: string[]) {
+    setSelected((prev) => prev.size === ids.length ? new Set() : new Set(ids));
+  }
+
+  async function confirmDeleteMulti() {
+    setDeletingMulti(false);
+    await Promise.all([...selected].map((id) => remove(id).catch(() => {})));
+    setSelected(new Set());
+  }
+
   async function handleSaveEdit(id: string, fields: { description: string; amount: number; type: 'despesa' | 'receita'; category: string; payment_method: string; installments?: number; current_installment?: number }) {
     await update(id, fields);
     setEditing(null);
@@ -389,51 +409,107 @@ export default function TransactionsPage() {
               <p className="text-sm font-medium">Nenhuma transação</p>
             </div>
           ) : (
-            <div className="divide-y divide-slate-200/50 dark:divide-slate-700/50">
-              {filtered.map((tx) => (
-                <div key={tx.id} className="flex items-center gap-4 px-6 py-4 hover:bg-slate-100/50 dark:hover:bg-slate-700/50 transition-colors group">
-                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                    tx.type === 'receita' ? 'bg-blue-100 dark:bg-blue-900/30' : 'bg-rose-100 dark:bg-rose-900/30'
-                  }`}>
-                    {tx.type === 'receita' ? (
-                      <TrendingUp className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                    ) : (
-                      <TrendingDown className="w-5 h-5 text-rose-600 dark:text-rose-400" />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-slate-900 dark:text-white text-sm">{tx.description}</p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 capitalize">
-                      {tx.category}
-                      {tx.payment_method && (
-                        <span className="text-slate-400 dark:text-slate-500"> · {PAYMENT_LABEL[tx.payment_method] || tx.payment_method}</span>
-                      )}
-                    </p>
-                  </div>
-                  <p className={`font-bold tabular-nums text-sm ${
-                    tx.type === 'receita' ? 'text-blue-600 dark:text-blue-400' : 'text-rose-600 dark:text-rose-400'
-                  }`}>
-                    {tx.type === 'receita' ? '+' : '-'}{brl(tx.amount)}
-                  </p>
-                  <button
-                    onClick={() => setEditing(tx)}
-                    className="p-2 text-slate-400 hover:text-fuchsia-600 dark:hover:text-fuchsia-400 transition-colors opacity-0 group-hover:opacity-100"
-                    title="Editar"
-                  >
-                    <Pencil className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(tx)}
-                    className="p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
-                    title="Deletar"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
-            </div>
+            <>
+              {/* Cabeçalho com selecionar todos */}
+              <div className="flex items-center gap-3 px-6 py-3 border-b border-slate-200/50 dark:border-slate-700/50 bg-slate-50/60 dark:bg-slate-900/30">
+                <input
+                  type="checkbox"
+                  checked={selected.size === filtered.length && filtered.length > 0}
+                  onChange={() => toggleSelectAll(filtered.map((t) => t.id))}
+                  className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 cursor-pointer accent-fuchsia-600"
+                  title="Selecionar todos"
+                />
+                <span className="text-xs text-slate-500 dark:text-slate-400 select-none">
+                  {selected.size > 0
+                    ? `${selected.size} selecionada${selected.size > 1 ? 's' : ''}`
+                    : 'Selecionar todas'}
+                </span>
+              </div>
+
+              <div className="divide-y divide-slate-200/50 dark:divide-slate-700/50">
+                {filtered.map((tx) => {
+                  const isSelected = selected.has(tx.id);
+                  return (
+                    <div
+                      key={tx.id}
+                      className={`flex items-center gap-4 px-6 py-4 transition-colors group ${
+                        isSelected
+                          ? 'bg-fuchsia-50/60 dark:bg-fuchsia-950/20'
+                          : 'hover:bg-slate-100/50 dark:hover:bg-slate-700/50'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleSelect(tx.id)}
+                        className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 cursor-pointer accent-fuchsia-600 flex-shrink-0"
+                      />
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                        tx.type === 'receita' ? 'bg-blue-100 dark:bg-blue-900/30' : 'bg-rose-100 dark:bg-rose-900/30'
+                      }`}>
+                        {tx.type === 'receita' ? (
+                          <TrendingUp className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                        ) : (
+                          <TrendingDown className="w-5 h-5 text-rose-600 dark:text-rose-400" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-slate-900 dark:text-white text-sm">{tx.description}</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 capitalize">
+                          {tx.category}
+                          {tx.payment_method && (
+                            <span className="text-slate-400 dark:text-slate-500"> · {PAYMENT_LABEL[tx.payment_method] || tx.payment_method}</span>
+                          )}
+                        </p>
+                      </div>
+                      <p className={`font-bold tabular-nums text-sm ${
+                        tx.type === 'receita' ? 'text-blue-600 dark:text-blue-400' : 'text-rose-600 dark:text-rose-400'
+                      }`}>
+                        {tx.type === 'receita' ? '+' : '-'}{brl(tx.amount)}
+                      </p>
+                      <button
+                        onClick={() => setEditing(tx)}
+                        className="p-2 text-slate-400 hover:text-fuchsia-600 dark:hover:text-fuchsia-400 transition-colors opacity-0 group-hover:opacity-100"
+                        title="Editar"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(tx)}
+                        className="p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
+                        title="Deletar"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
           )}
         </div>
+
+        {/* Barra flutuante de seleção múltipla */}
+        {selected.size > 0 && (
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-4 px-6 py-3 bg-slate-900 dark:bg-slate-700 text-white rounded-2xl shadow-2xl border border-slate-700 dark:border-slate-600">
+            <span className="text-sm font-medium">
+              {selected.size} transaç{selected.size > 1 ? 'ões' : 'ão'} selecionada{selected.size > 1 ? 's' : ''}
+            </span>
+            <button
+              onClick={() => setSelected(new Set())}
+              className="text-slate-400 hover:text-white text-sm transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={() => setDeletingMulti(true)}
+              className="flex items-center gap-2 px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold text-sm transition-colors"
+            >
+              <Trash2 className="w-4 h-4" />
+              Excluir {selected.size > 1 ? 'selecionadas' : ''}
+            </button>
+          </div>
+        )}
       </div>
 
       {showSubscriptionModal && pendingFixedParsed && (
@@ -491,6 +567,40 @@ export default function TransactionsPage() {
               </button>
               <button onClick={confirmDelete} className="flex-1 py-3 rounded-xl font-bold text-white bg-rose-500 hover:bg-rose-600 transition-all">
                 Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal exclusão múltipla */}
+      {deletingMulti && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl p-6 w-full max-w-sm flex flex-col gap-5">
+            <div className="flex flex-col items-center text-center gap-2">
+              <div className="w-14 h-14 rounded-full bg-rose-100 dark:bg-rose-950/40 flex items-center justify-center mb-1">
+                <Trash2 className="w-7 h-7 text-rose-500" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+                Excluir {selected.size} transaç{selected.size > 1 ? 'ões' : 'ão'}?
+              </h3>
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                As transações selecionadas serão removidas permanentemente.
+              </p>
+              <p className="text-xs text-rose-500">Essa ação não pode ser desfeita.</p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeletingMulti(false)}
+                className="flex-1 py-3 rounded-xl font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmDeleteMulti}
+                className="flex-1 py-3 rounded-xl font-bold text-white bg-rose-500 hover:bg-rose-600 transition-all"
+              >
+                Excluir {selected.size > 1 ? 'todas' : ''}
               </button>
             </div>
           </div>
