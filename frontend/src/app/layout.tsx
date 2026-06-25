@@ -21,8 +21,8 @@ export const metadata: Metadata = {
   title: "PorquIA - Seu Agente Financeiro",
   description: "Seu assistente de finanças pessoais com IA",
   icons: {
-    icon: "/logo-porquia.png",
-    apple: "/logo-porquia.png",
+    icon: "/logo-porquia-redonda.png",
+    apple: "/logo-porquia-redonda.png",
   },
 };
 

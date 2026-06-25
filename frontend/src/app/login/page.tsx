@@ -48,8 +48,8 @@ function LoginContent() {
 
       <div className="w-full max-w-lg glass-panel rounded-[2.5rem] p-8 sm:p-12 relative z-10 animate-fade-in-up">
         <div className="text-center mb-10">
-          <div className="w-16 h-16 mx-auto rounded-2xl overflow-hidden shadow-[0_0_20px_rgba(236,72,153,0.4)] mb-6">
-            <Image src="/logo-porquia.png" alt="PorquIA" width={64} height={64} className="object-cover" />
+          <div className="w-24 h-24 mx-auto rounded-full overflow-hidden shadow-[0_0_20px_rgba(236,72,153,0.4)] mb-6">
+            <Image src="/logo-porquia-redonda.png" alt="PorquIA" width={96} height={96} className="object-cover" />
           </div>
           <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-3">Bem-vindo</h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">Gerencie suas finanças com IA</p>

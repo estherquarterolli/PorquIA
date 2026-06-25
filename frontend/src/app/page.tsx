@@ -62,8 +62,8 @@ export default function Home() {
         {/* Navbar */}
         <header className="max-w-6xl mx-auto px-6 py-6 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-xl overflow-hidden shadow-lg shadow-pink-500/30 shrink-0">
-              <Image src="/logo-porquia.png" alt="PorquIA" width={40} height={40} className="object-cover" />
+            <div className="w-12 h-12 rounded-full overflow-hidden shadow-lg shadow-pink-500/30 shrink-0">
+              <Image src="/logo-porquia-redonda.png" alt="PorquIA" width={48} height={48} className="object-cover" />
             </div>
             <span className="text-xl font-bold text-slate-900 dark:text-white">PorquIA</span>
           </div>
