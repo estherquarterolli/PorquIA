@@ -148,10 +148,10 @@ export default function Home() {
                 ))}
               </ul>
               <button
-                onClick={() => router.push('/login')}
+                onClick={() => router.push('/login?plan=monthly')}
                 className="w-full py-3.5 bg-white dark:bg-slate-800 border-2 border-fuchsia-500 text-fuchsia-600 dark:text-fuchsia-400 font-bold rounded-xl hover:bg-fuchsia-50 dark:hover:bg-fuchsia-950/30 transition-all active:scale-[0.98]"
               >
-                Começar com 7 dias grátis
+                Assinar Mensal
               </button>
             </div>
 
@@ -177,7 +177,7 @@ export default function Home() {
                 ))}
               </ul>
               <button
-                onClick={() => router.push('/login')}
+                onClick={() => router.push('/login?plan=annual')}
                 className="w-full py-3.5 bg-white text-fuchsia-600 font-bold rounded-xl hover:bg-fuchsia-50 transition-all active:scale-[0.98] shadow-lg"
               >
                 Melhor custo-benefício

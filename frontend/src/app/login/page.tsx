@@ -1,21 +1,29 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowRight } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
+import { api } from '@/lib/api';
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const plan = searchParams.get('plan') as 'monthly' | 'annual' | null;
   const { user, loading, signInWithGoogle } = useAuth();
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!loading && user) {
+    if (loading || !user) return;
+    if (plan === 'monthly' || plan === 'annual') {
+      api.createCheckout(plan)
+        .then(({ url }) => { window.location.href = url; })
+        .catch(() => router.push('/dashboard'));
+    } else {
       router.push('/dashboard');
     }
-  }, [user, loading, router]);
+  }, [user, loading, router, plan]);
 
   const handleGoogleLogin = async () => {
     setIsLoggingIn(true);
