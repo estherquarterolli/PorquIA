@@ -31,7 +31,8 @@ Retorne SEMPRE um JSON válido com esta estrutura:
   "description": "string (descrição curta da transação)",
   "category": "string (uma de: alimentação, transporte, moradia, saúde, lazer, educação, vestuário, serviços, investimento, outros)",
   "payment_method": "string (uma de: pix, cartão_crédito, cartão_débito, dinheiro, transferência, outro)",
-  "installments": número (quantidade de parcelas, padrão 1),
+  "installments": número (quantidade TOTAL de parcelas, padrão 1),
+  "current_installment": número (parcela atual, padrão 1),
   "start_date": "string YYYY-MM do mês da 1ª parcela, ou null se não mencionado",
   "type": "string (despesa ou receita)"
 }
@@ -40,15 +41,16 @@ REGRAS DE PARCELAMENTO (muito importante):
 - "amount" é sempre o valor de UMA parcela (o que será cobrado POR MÊS).
 - Quando o texto for "Nx VALOR" (ex: "12x 405,89"), VALOR já é o valor de cada parcela → amount = VALOR, installments = N.
 - Quando for "VALOR em Nx" / "VALOR parcelado em N" (ex: "300 em 3x"), VALOR é o total → amount = VALOR / N, installments = N.
+- Quando mencionar parcela atual (ex: "8 de 12", "parcela 8/12", "estou na 8a parcela de 12"), extraia current_installment = 8, installments = 12. O sistema lançará essa parcela no mês atual e as restantes nos próximos meses.
 - Se mencionar mês de início (ex: "começou em abril de 2026", "a partir de janeiro"), preencha start_date no formato YYYY-MM. Sem ano explícito, use ${CURRENT_YEAR}. Sem menção de início, start_date = null.
 - Use vírgula decimal brasileira: "405,89" = 405.89.
 
 Exemplos:
-- "gastei 50 no mercado" → {"amount": 50, "description": "mercado", "category": "alimentação", "payment_method": "outro", "installments": 1, "start_date": null, "type": "despesa"}
-- "paguei 1200 de aluguel no pix" → {"amount": 1200, "description": "aluguel", "category": "moradia", "payment_method": "pix", "installments": 1, "start_date": null, "type": "despesa"}
-- "celular 12x 405,89 nubank começou em abril de 2026" → {"amount": 405.89, "description": "celular", "category": "outros", "payment_method": "cartão_crédito", "installments": 12, "start_date": "2026-04", "type": "despesa"}
-- "comprei tênis por 300 em 3x no cartão" → {"amount": 100, "description": "tênis", "category": "vestuário", "payment_method": "cartão_crédito", "installments": 3, "start_date": null, "type": "despesa"}
-- "recebi salário 5000" → {"amount": 5000, "description": "salário", "category": "outros", "payment_method": "transferência", "installments": 1, "start_date": null, "type": "receita"}
+- "gastei 50 no mercado" → {"amount": 50, "description": "mercado", "category": "alimentação", "payment_method": "outro", "installments": 1, "current_installment": 1, "start_date": null, "type": "despesa"}
+- "celular 12x 405,89 nubank começou em abril de 2026" → {"amount": 405.89, "description": "celular", "category": "outros", "payment_method": "cartão_crédito", "installments": 12, "current_installment": 1, "start_date": "2026-04", "type": "despesa"}
+- "comprei tênis por 300 em 3x no cartão" → {"amount": 100, "description": "tênis", "category": "vestuário", "payment_method": "cartão_crédito", "installments": 3, "current_installment": 1, "start_date": null, "type": "despesa"}
+- "8 de 12 curso coreano 72,08" → {"amount": 72.08, "description": "curso coreano", "category": "educação", "payment_method": "cartão_crédito", "installments": 12, "current_installment": 8, "start_date": null, "type": "despesa"}
+- "recebi salário 5000" → {"amount": 5000, "description": "salário", "category": "outros", "payment_method": "transferência", "installments": 1, "current_installment": 1, "start_date": null, "type": "receita"}
 
 Se não conseguir identificar uma transação financeira, retorne: {"error": "Não entendi a transação. Tente: 'gastei 50 no mercado' ou 'paguei 1200 de aluguel'"}`;
 
@@ -81,13 +83,26 @@ const MONTHS = {
 function enrichInstallments(message, parsed) {
   const text = String(message).toLowerCase();
 
+  // Parcela atual de total: "8 de 12", "8/12", "parcela 8 de 12"
+  const mAtual = text.match(/\b(\d{1,3})\s*(?:de|\/)\s*(\d{1,3})\b/);
+  if (mAtual) {
+    const cur = parseInt(mAtual[1], 10);
+    const tot = parseInt(mAtual[2], 10);
+    if (cur >= 1 && tot >= 2 && cur <= tot) {
+      parsed.current_installment = cur;
+      parsed.installments = tot;
+    }
+  }
+
   // Nº de parcelas: "12x", "12 x", "em 12 vezes", "em 12 parcelas"
-  const mParcelas =
-    text.match(/(\d{1,3})\s*x\b/) ||
-    text.match(/em\s+(\d{1,3})\s*(?:vezes|parcelas)/);
-  if (mParcelas) {
-    const n = parseInt(mParcelas[1], 10);
-    if (n >= 2 && n <= 360) parsed.installments = n;
+  if (!mAtual) {
+    const mParcelas =
+      text.match(/(\d{1,3})\s*x\b/) ||
+      text.match(/em\s+(\d{1,3})\s*(?:vezes|parcelas)/);
+    if (mParcelas) {
+      const n = parseInt(mParcelas[1], 10);
+      if (n >= 2 && n <= 360) parsed.installments = n;
+    }
   }
 
   // Mês inicial: "começou em abril de 2026", "a partir de janeiro", "início em março"

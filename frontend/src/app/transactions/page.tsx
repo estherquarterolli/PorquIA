@@ -234,7 +234,7 @@ export default function TransactionsPage() {
     await remove(id).catch(() => {});
   }
 
-  async function handleSaveEdit(id: string, fields: { description: string; amount: number; type: 'despesa' | 'receita'; category: string; payment_method: string }) {
+  async function handleSaveEdit(id: string, fields: { description: string; amount: number; type: 'despesa' | 'receita'; category: string; payment_method: string; installments?: number; current_installment?: number }) {
     await update(id, fields);
     setEditing(null);
   }
@@ -671,27 +671,41 @@ function EditModal({
 }: {
   tx: Transaction;
   onClose: () => void;
-  onSave: (id: string, fields: { description: string; amount: number; type: 'despesa' | 'receita'; category: string; payment_method: string }) => Promise<void>;
+  onSave: (id: string, fields: { description: string; amount: number; type: 'despesa' | 'receita'; category: string; payment_method: string; installments?: number; current_installment?: number }) => Promise<void>;
 }) {
   const [description, setDescription] = useState(tx.description);
   const [amount, setAmount] = useState(String(tx.amount));
   const [type, setType] = useState<'despesa' | 'receita'>(tx.type);
   const [category, setCategory] = useState(tx.category || 'outros');
   const [paymentMethod, setPaymentMethod] = useState(tx.payment_method || '');
+  const [installments, setInstallments] = useState(String(tx.installments || 1));
+  const [currentInstallment, setCurrentInstallment] = useState(String(tx.installments && tx.installments > 1 ? 1 : 1));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const isParcelado = parseInt(installments) > 1;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     const value = parseFloat(amount.replace(',', '.'));
+    const tot = parseInt(installments);
+    const cur = parseInt(currentInstallment);
     if (!description.trim() || isNaN(value) || value <= 0) {
       setError('Preencha um nome e um valor válido.');
+      return;
+    }
+    if (isParcelado && (cur < 1 || cur > tot)) {
+      setError(`Parcela atual deve ser entre 1 e ${tot}.`);
       return;
     }
     setSaving(true);
     setError(null);
     try {
-      await onSave(tx.id, { description: description.trim(), amount: value, type, category, payment_method: paymentMethod });
+      await onSave(tx.id, {
+        description: description.trim(), amount: value, type, category, payment_method: paymentMethod,
+        installments: isParcelado ? tot : undefined,
+        current_installment: isParcelado ? cur : undefined,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao salvar.');
       setSaving(false);
@@ -783,6 +797,32 @@ function EditModal({
               </button>
             ))}
           </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Total de parcelas</label>
+            <input
+              type="number"
+              min="1"
+              value={installments}
+              onChange={(e) => setInstallments(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-fuchsia-500 text-sm"
+            />
+          </div>
+
+          {isParcelado && (
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Parcela atual (mês corrente)</label>
+              <input
+                type="number"
+                min="1"
+                max={installments}
+                value={currentInstallment}
+                onChange={(e) => setCurrentInstallment(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-fuchsia-500 text-sm"
+              />
+              <p className="text-xs text-slate-400 mt-1">As parcelas restantes serão lançadas nos próximos meses.</p>
+            </div>
+          )}
 
           {error && <p className="text-sm text-rose-500">{error}</p>}
 
