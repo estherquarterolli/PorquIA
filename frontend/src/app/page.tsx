@@ -167,8 +167,7 @@ export default function Home() {
                 <span className="text-white/70 mb-1">/ano</span>
               </div>
               <p className="text-sm text-white/80 mb-6">
-                <span className="line-through opacity-70">R$ 238,80</span> · equivale a R$ 14,99/mês · parcele em até 12x no cartão
-              </p>
+                <span className="line-through opacity-70">R$ 238,80</span> · equivale a R$ 14,99/mês              </p>
               <ul className="space-y-3 mb-8 flex-1">
                 {PLAN_FEATURES.map((feat) => (
                   <li key={feat} className="flex items-start gap-2.5 text-sm text-white/95">
