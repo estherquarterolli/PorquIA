@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useBudgets } from '@/lib/hooks';
 import { api, BudgetStatus } from '@/lib/api';
-import { Trash2, Edit2, AlertCircle } from 'lucide-react';
+import { Trash2, Edit2, AlertCircle, Check, X } from 'lucide-react';
 
 const CATEGORIES = [
   'alimentação','transporte','moradia','saúde','lazer',
@@ -169,8 +169,8 @@ export default function BudgetsPage() {
                 {editingId === b.id && (
                   <div className="flex gap-2 pt-3 border-t border-slate-200/50 dark:border-slate-700/50">
                     <input type="number" value={editingValue} onChange={(e) => setEditingValue(e.target.value)} className="flex-1 px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-sm" />
-                    <button onClick={() => handleUpdate(b.id)} className="px-3 py-2 bg-emerald-600 text-white rounded-lg text-xs font-bold">✓</button>
-                    <button onClick={() => setEditingId(null)} className="px-3 py-2 bg-slate-300 dark:bg-slate-700 rounded-lg text-xs font-bold">✕</button>
+                    <button onClick={() => handleUpdate(b.id)} className="px-3 py-2 bg-emerald-600 text-white rounded-lg text-xs font-bold flex items-center"><Check className="w-3.5 h-3.5" /></button>
+                    <button onClick={() => setEditingId(null)} className="px-3 py-2 bg-slate-300 dark:bg-slate-700 rounded-lg text-xs font-bold flex items-center"><X className="w-3.5 h-3.5" /></button>
                   </div>
                 )}
               </div>

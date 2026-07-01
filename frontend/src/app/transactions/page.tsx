@@ -3,22 +3,12 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useTransactions } from '@/lib/hooks';
 import { api, Transaction, ParsedTransaction } from '@/lib/api';
-import { Download, Trash2, TrendingDown, TrendingUp, Pencil, X, RefreshCw } from 'lucide-react';
+import { Download, Trash2, TrendingDown, Pencil, X, RefreshCw, Smartphone, ClipboardList, Check } from 'lucide-react';
+import { getAllCategories } from '@/lib/categories';
 
 function brl(v: number) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 }
-
-const CATEGORY_EMOJI: Record<string, string> = {
-  alimentação: '🍔', transporte: '🚗', moradia: '🏠', saúde: '💊',
-  lazer: '🎮', educação: '📚', vestuário: '👕', serviços: '🔧',
-  investimento: '📈', outros: '📦',
-};
-
-const CATEGORIES = [
-  'alimentação', 'transporte', 'moradia', 'saúde', 'lazer',
-  'educação', 'vestuário', 'serviços', 'investimento', 'outros',
-];
 
 const PAYMENT_METHODS = [
   { value: 'pix', label: 'Pix' },
@@ -95,10 +85,12 @@ export default function TransactionsPage() {
   const [totalInstallments, setTotalInstallments] = useState('1');
   const [currentInstallment, setCurrentInstallment] = useState('1');
   const [search, setSearch] = useState('');
-  const [typeFilter, setTypeFilter] = useState<'all' | 'despesa' | 'receita'>('all');
   const [monthFilter, setMonthFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [paymentFilter, setPaymentFilter] = useState('');
+  const [selectedMonth, setSelectedMonth] = useState('');
+  const [pendingFullMessage, setPendingFullMessage] = useState('');
+  const allCategories = useMemo(() => getAllCategories(), []);
 
   const monthOptions = useMemo(() => buildMonthOptions(transactions), [transactions]);
   const categoryOptions = useMemo(
@@ -114,8 +106,8 @@ export default function TransactionsPage() {
 
   const filtered = useMemo(() => {
     return transactions.filter((tx) => {
+      if (tx.type !== 'despesa') return false;
       if (search && !tx.description.toLowerCase().includes(search.toLowerCase()) && !tx.category.toLowerCase().includes(search.toLowerCase())) return false;
-      if (typeFilter !== 'all' && tx.type !== typeFilter) return false;
       if (categoryFilter && tx.category !== categoryFilter) return false;
       if (paymentFilter && tx.payment_method !== paymentFilter) return false;
       if (monthFilter) {
@@ -144,9 +136,17 @@ export default function TransactionsPage() {
     setSubmitError(null);
     setPreviewError(null);
 
+    let fullMessage = message.trim();
+    if (selectedMonth) {
+      const [y, m] = selectedMonth.split('-').map(Number);
+      const monthName = new Date(y, m - 1, 1).toLocaleDateString('pt-BR', { month: 'long' });
+      fullMessage += ` em ${monthName} de ${y}`;
+    }
+    setPendingFullMessage(fullMessage);
+
     try {
       setPreviewLoading(true);
-      const parsed = await api.previewTransaction(message);
+      const parsed = await api.previewTransaction(fullMessage);
       setPreview(parsed);
 
       if (isFixedExpense) {
@@ -162,7 +162,7 @@ export default function TransactionsPage() {
         return;
       }
 
-      await sendTransaction(parsed);
+      await sendTransaction(parsed, fullMessage);
     } catch (err) {
       setPreviewError(err instanceof Error ? err.message : 'Erro ao analisar a transação');
     } finally {
@@ -184,7 +184,7 @@ export default function TransactionsPage() {
           recurrence_type: 'mensal',
           start_date: parsed.start_date ? `${parsed.start_date}-01` : undefined,
         });
-        setSubmitSuccess(`✓ ${parsed.description} registrada como assinatura! Confira na aba Assinaturas.`);
+        setSubmitSuccess(`${parsed.description} registrada como assinatura.`);
       } else {
         await api.createFixedExpense({
           description: parsed.description,
@@ -193,7 +193,7 @@ export default function TransactionsPage() {
           recurrence_type: 'mensal',
           start_date: parsed.start_date ? `${parsed.start_date}-01` : undefined,
         });
-        setSubmitSuccess(`✓ Gasto fixo ${parsed.description} registrado`);
+        setSubmitSuccess(`Gasto fixo "${parsed.description}" registrado.`);
       }
 
       setMessage('');
@@ -209,7 +209,7 @@ export default function TransactionsPage() {
     }
   }
 
-  async function sendTransaction(parsed: ParsedTransaction) {
+  async function sendTransaction(parsed: ParsedTransaction, msgOverride?: string) {
     try {
       setIsSubmitting(true);
       setSubmitError(null);
@@ -217,8 +217,8 @@ export default function TransactionsPage() {
 
       const installments = parsed.payment_method === 'cartão_crédito' ? Number(totalInstallments) : undefined;
       const current_installment = parsed.payment_method === 'cartão_crédito' ? Number(currentInstallment) : undefined;
-      const result = await create(message, installments, current_installment);
-      setSubmitSuccess(`✓ ${result.description} foi registrado`);
+      const result = await create(msgOverride ?? message, installments, current_installment);
+      setSubmitSuccess(`${result.description} registrado.`);
 
       setMessage('');
       setIsFixedExpense(false);
@@ -307,9 +307,19 @@ export default function TransactionsPage() {
               {isFixedExpense && (
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-fuchsia-200/70 dark:border-fuchsia-800/50 bg-fuchsia-50 dark:bg-fuchsia-950/30 px-3 py-2 text-xs font-medium text-fuchsia-600 dark:text-fuchsia-400">
                   <RefreshCw className="w-3 h-3" />
-                  Será perguntado se é assinatura
+                  Será perguntado se é assinatura ou gasto fixo
                 </span>
               )}
+              <select
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
+                className="rounded-full border border-slate-200/70 dark:border-slate-700/70 bg-slate-50 dark:bg-slate-900/60 px-3 py-2 text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-fuchsia-500"
+              >
+                <option value="">Mês atual</option>
+                {monthOptions.filter(o => o.value).map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
             </div>
             {preview && (
               <div className="rounded-2xl border border-slate-200/70 dark:border-slate-700/70 bg-slate-50 dark:bg-slate-900/60 p-4 text-sm text-slate-700 dark:text-slate-200">
@@ -334,7 +344,12 @@ export default function TransactionsPage() {
                 </div>
               </div>
             )}
-            {submitSuccess && <p className="text-green-600 dark:text-green-400 text-sm font-semibold">{submitSuccess}</p>}
+            {submitSuccess && (
+              <div className="flex items-center gap-1.5 text-sm text-emerald-600 dark:text-emerald-400 font-semibold">
+                <Check className="w-4 h-4 shrink-0" />
+                {submitSuccess}
+              </div>
+            )}
             {submitError && <p className="text-red-600 dark:text-red-400 text-sm">{submitError}</p>}
             {previewError && <p className="text-orange-600 dark:text-orange-400 text-sm">{previewError}</p>}
           </form>
@@ -349,16 +364,7 @@ export default function TransactionsPage() {
             placeholder="Buscar por descrição ou categoria..."
             className="w-full px-4 py-2.5 border border-slate-200/50 dark:border-slate-600/50 rounded-xl bg-white/50 dark:bg-slate-800/50 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-fuchsia-500 text-sm backdrop-blur-sm"
           />
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value as typeof typeFilter)}
-              className="px-3 py-2.5 border border-slate-200/50 dark:border-slate-600/50 rounded-xl bg-white/50 dark:bg-slate-800/50 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-fuchsia-500 backdrop-blur-sm"
-            >
-              <option value="all">Todos os tipos</option>
-              <option value="despesa">Despesas</option>
-              <option value="receita">Receitas</option>
-            </select>
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
             <select
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
@@ -540,7 +546,7 @@ export default function TransactionsPage() {
             setCurrentInstallment(String(current));
             setShowCreditModal(false);
             if (preview) {
-              await sendTransaction(preview);
+              await sendTransaction(preview, pendingFullMessage);
             }
           }}
         />
@@ -665,7 +671,9 @@ function SubscriptionModal({
             disabled={saving}
             className="group flex flex-col items-center gap-3 p-5 rounded-2xl border-2 border-fuchsia-200 dark:border-fuchsia-800/60 bg-fuchsia-50 dark:bg-fuchsia-950/30 hover:border-fuchsia-400 dark:hover:border-fuchsia-500 hover:bg-fuchsia-100 dark:hover:bg-fuchsia-950/60 transition-all disabled:opacity-50"
           >
-            <span className="text-3xl group-hover:scale-110 transition-transform">📱</span>
+            <div className="w-12 h-12 rounded-xl bg-fuchsia-500 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <Smartphone className="w-6 h-6 text-white" />
+            </div>
             <div className="text-center">
               <p className="font-bold text-sm text-fuchsia-700 dark:text-fuchsia-300">Sim, assinatura</p>
               <p className="text-xs text-fuchsia-500/80 dark:text-fuchsia-400/60 mt-0.5">Netflix, Spotify, planos...</p>
@@ -677,10 +685,12 @@ function SubscriptionModal({
             disabled={saving}
             className="group flex flex-col items-center gap-3 p-5 rounded-2xl border-2 border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 hover:border-slate-400 dark:hover:border-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-all disabled:opacity-50"
           >
-            <span className="text-3xl group-hover:scale-110 transition-transform">📋</span>
+            <div className="w-12 h-12 rounded-xl bg-slate-500 dark:bg-slate-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <ClipboardList className="w-6 h-6 text-white" />
+            </div>
             <div className="text-center">
               <p className="font-bold text-sm text-slate-700 dark:text-slate-200">Não, gasto fixo</p>
-              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Aluguel, conta, plano...</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Aluguel, água, luz...</p>
             </div>
           </button>
         </div>
@@ -816,6 +826,7 @@ function EditModal({
   onClose: () => void;
   onSave: (id: string, fields: { description: string; amount: number; type: 'despesa' | 'receita'; category: string; payment_method: string; installments?: number; current_installment?: number }) => Promise<void>;
 }) {
+  const allCategories = useMemo(() => getAllCategories(), []);
   const [description, setDescription] = useState(tx.description);
   const [amount, setAmount] = useState(String(tx.amount));
   const [type, setType] = useState<'despesa' | 'receita'>(tx.type);
@@ -903,10 +914,10 @@ function EditModal({
                 onChange={(e) => setCategory(e.target.value)}
                 className="w-full px-3 py-3 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-fuchsia-500 text-sm capitalize"
               >
-                {CATEGORIES.map((c) => (
+                {allCategories.map((c) => (
                   <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>
                 ))}
-                {category && !CATEGORIES.includes(category) && <option value={category}>{category}</option>}
+                {category && !allCategories.includes(category) && <option value={category}>{category}</option>}
               </select>
             </div>
             <div>

@@ -30,7 +30,7 @@ export default function SettingsPage() {
       setLinkedChatId(id);
       setTelegramId('');
       await refreshProfile();
-      setModal({ type: 'success', message: 'Telegram conectado com sucesso! Agora é só mandar seus gastos pelo bot. 🎉' });
+      setModal({ type: 'success', message: 'Telegram conectado com sucesso! Agora é só mandar seus gastos pelo bot.' });
     } catch (err) {
       setModal({ type: 'error', message: err instanceof Error ? err.message : 'Não foi possível vincular o Telegram.' });
     } finally {

@@ -95,7 +95,7 @@ export default function PaywallPage() {
             </div>
           )}
           <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 dark:text-white mb-3">
-            {user?.displayName ? `${user.displayName.split(' ')[0]}, ` : ''}continue no controle 💸
+            {user?.displayName ? `${user.displayName.split(' ')[0]}, ` : ''}continue no controle
           </h1>
           <p className="text-slate-600 dark:text-slate-400 max-w-lg mx-auto">
             Assine para manter acesso à IA, ao bot do Telegram e a todos os seus dados financeiros.

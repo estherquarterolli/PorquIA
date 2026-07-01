@@ -16,9 +16,9 @@ export default function BanksPage() {
     try {
       const content = await file.text();
       const r = await api.importStatement(content, file.name);
-      setMsg(`✅ ${r.imported} de ${r.found} transações importadas (${r.skipped} já existiam).`);
+      setMsg(`${r.imported} de ${r.found} transações importadas (${r.skipped} já existiam).`);
     } catch (err) {
-      setMsg(`❌ ${(err as Error).message}`);
+      setMsg(`Erro: ${(err as Error).message}`);
     } finally {
       setBusy(false);
       e.target.value = '';

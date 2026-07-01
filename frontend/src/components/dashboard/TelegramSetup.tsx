@@ -82,16 +82,16 @@ export function TelegramSetup() {
         <div className="bg-white/10 backdrop-blur rounded-xl p-4 mb-5 border border-white/20">
           <p className="text-xs font-semibold uppercase tracking-wide text-white/75 mb-2">Exemplos de uso:</p>
           <div className="space-y-1.5 text-sm">
-            <p className="text-white/90">💬 "gastei 50 no mercado"</p>
-            <p className="text-white/90">💬 "recebi 2000 de freela"</p>
-            <p className="text-white/90">💬 "almoço 30 reais"</p>
+            <p className="text-white/90">"gastei 50 no mercado"</p>
+            <p className="text-white/90">"recebi 2000 de freela"</p>
+            <p className="text-white/90">"almoço 30 reais"</p>
           </div>
         </div>
 
         {/* CTAs */}
         <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
           <div className="flex-1">
-            <p className="text-xs text-white/75 font-medium">✓ Fácil • ✓ Rápido • ✓ Inteligente</p>
+            <p className="text-xs text-white/75 font-medium">Fácil · Rápido · Inteligente</p>
           </div>
           <div className="flex gap-3">
             <button

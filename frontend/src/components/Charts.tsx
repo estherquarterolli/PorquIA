@@ -5,6 +5,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Area, AreaChart,
 } from 'recharts';
+import { TrendingUp } from 'lucide-react';
 
 const COLORS = [
   '#3b82f6', '#f43f5e', '#f59e0b', '#10b981',
@@ -217,7 +218,7 @@ export function InvestmentBarChart({ data }: InvestmentBarChartProps) {
   if (!data || data.length === 0 || data.every(d => d.total === 0)) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-slate-400">
-        <span className="text-4xl mb-3">📈</span>
+        <TrendingUp className="w-10 h-10 mb-3 text-slate-300 dark:text-slate-600" />
         <p className="text-sm font-medium">Nenhum aporte registrado</p>
         <p className="text-xs mt-1">Adicione transações com categoria &quot;investimento&quot;</p>
       </div>

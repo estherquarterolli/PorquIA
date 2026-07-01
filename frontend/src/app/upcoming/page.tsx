@@ -2,15 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { api, UpcomingMonth } from '@/lib/api';
-import { ChevronDown, CalendarClock, TrendingDown, TrendingUp } from 'lucide-react';
+import { ChevronDown, CalendarClock, TrendingDown, TrendingUp, Tag } from 'lucide-react';
 
 const brl = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-const CATEGORY_EMOJI: Record<string, string> = {
-  alimentação: '🍔', transporte: '🚗', moradia: '🏠', saúde: '💊',
-  lazer: '🎮', educação: '📚', vestuário: '👕', serviços: '🔧',
-  investimento: '📈', outros: '📦',
-};
 
 export default function UpcomingPage() {
   const [months, setMonths] = useState<UpcomingMonth[]>([]);
@@ -81,7 +76,9 @@ export default function UpcomingPage() {
                   <div className="divide-y divide-slate-100 dark:divide-zinc-800 border-t border-slate-100 dark:border-zinc-800">
                     {m.items.map((it) => (
                       <div key={it.id} className="flex items-center gap-3 px-5 py-3">
-                        <span className="text-lg">{CATEGORY_EMOJI[it.category] || '📦'}</span>
+                        <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-700 flex items-center justify-center shrink-0">
+                          <Tag className="w-3.5 h-3.5 text-slate-400" />
+                        </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-slate-900 dark:text-white truncate">{it.description}</p>
                           <p className="text-xs text-slate-400 capitalize">{it.category}</p>

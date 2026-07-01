@@ -53,7 +53,7 @@ function buildInsights(summary: Summary, monthly: MonthlyData[]): Insight[] {
         out.push({
           Icon: TrendingDown,
           tone: 'good',
-          text: <>Você gastou <strong>{Math.abs(diff)}% a menos</strong> que no mês passado. Mandou bem! 🎉</>,
+          text: <>Você gastou <strong>{Math.abs(diff)}% a menos</strong> que no mês passado. Continue assim!</>,
         });
       } else {
         out.push({

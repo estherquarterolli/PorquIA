@@ -10,32 +10,56 @@ import { useProfile } from '@/lib/profile-context';
 import { UserAvatar } from '@/components/UserAvatar';
 import {
   LayoutDashboard,
-  ArrowLeftRight,
+  ArrowDownLeft,
+  ArrowUpRight,
+  Tag,
   Wallet,
-  TrendingUp,
+  CalendarCheck,
   Repeat,
+  CalendarClock,
+  TrendingUp,
+  Landmark,
   Settings,
   LogOut,
   Sun,
   Moon,
   Send,
-  CalendarCheck,
-  CalendarClock,
-  Landmark,
   Zap,
 } from 'lucide-react';
 
-const LINKS = [
-  { href: '/dashboard',     Icon: LayoutDashboard, label: 'Dashboard' },
-  { href: '/transactions',  Icon: ArrowLeftRight,  label: 'Transações' },
-  { href: '/budgets',       Icon: Wallet,          label: 'Orçamentos' },
-  { href: '/recurring',     Icon: CalendarCheck,   label: 'Gastos Fixos' },
-  { href: '/upcoming',      Icon: CalendarClock,   label: 'Próximos Meses' },
-  { href: '/investments',   Icon: TrendingUp,      label: 'Investimentos' },
-  { href: '/banks',         Icon: Landmark,        label: 'Importar Extrato' },
-  { href: '/subscriptions', Icon: Repeat,          label: 'Assinaturas' },
-  { href: '/settings',      Icon: Settings,        label: 'Configurações' },
-  { href: '/planos',        Icon: Zap,             label: 'Planos' },
+const NAV_SECTIONS = [
+  {
+    label: 'FINANÇAS',
+    links: [
+      { href: '/dashboard',    Icon: LayoutDashboard, label: 'Dashboard' },
+      { href: '/transactions', Icon: ArrowUpRight,    label: 'Despesas' },
+      { href: '/income',       Icon: ArrowDownLeft,   label: 'Receitas' },
+    ],
+  },
+  {
+    label: 'CONTROLE',
+    links: [
+      { href: '/budgets',      Icon: Wallet,          label: 'Orçamentos' },
+      { href: '/categories',   Icon: Tag,             label: 'Categorias' },
+      { href: '/recurring',    Icon: CalendarCheck,   label: 'Gastos Fixos' },
+      { href: '/subscriptions',Icon: Repeat,          label: 'Assinaturas' },
+    ],
+  },
+  {
+    label: 'ANÁLISE',
+    links: [
+      { href: '/upcoming',     Icon: CalendarClock,   label: 'Próximos Meses' },
+      { href: '/investments',  Icon: TrendingUp,      label: 'Investimentos' },
+      { href: '/banks',        Icon: Landmark,        label: 'Importar Extrato' },
+    ],
+  },
+  {
+    label: 'CONTA',
+    links: [
+      { href: '/settings',     Icon: Settings,        label: 'Configurações' },
+      { href: '/planos',       Icon: Zap,             label: 'Planos' },
+    ],
+  },
 ];
 
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
@@ -66,33 +90,37 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       </Link>
 
       {/* Nav */}
-      <nav className="flex-1 px-4 overflow-y-auto">
-        <p className="px-3 mt-2 mb-3 text-[10px] font-bold tracking-widest text-slate-400 dark:text-slate-600">
-          MENU
-        </p>
-        <div className="space-y-1">
-          {LINKS.map(({ href, Icon, label }) => {
-            const active = pathname === href;
-            return (
-              <Link
-                key={href}
-                href={href}
-                onClick={onNavigate}
-                className={`flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
-                  active
-                    ? 'bg-gradient-to-r from-fuchsia-600 to-pink-600 text-white shadow-lg shadow-pink-600/30'
-                    : 'text-slate-500 dark:text-slate-400 hover:bg-pink-50 dark:hover:bg-zinc-900 hover:text-pink-600 dark:hover:text-pink-400'
-                }`}
-              >
-                <Icon className="w-5 h-5" strokeWidth={2} />
-                <span>{label}</span>
-              </Link>
-            );
-          })}
-        </div>
+      <nav className="flex-1 px-4 overflow-y-auto space-y-4">
+        {NAV_SECTIONS.map((section) => (
+          <div key={section.label}>
+            <p className="px-3 mb-1.5 text-[10px] font-bold tracking-widest text-slate-400 dark:text-slate-600">
+              {section.label}
+            </p>
+            <div className="space-y-0.5">
+              {section.links.map(({ href, Icon, label }) => {
+                const active = pathname === href;
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    onClick={onNavigate}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
+                      active
+                        ? 'bg-gradient-to-r from-fuchsia-600 to-pink-600 text-white shadow-lg shadow-pink-600/30'
+                        : 'text-slate-500 dark:text-slate-400 hover:bg-pink-50 dark:hover:bg-zinc-900 hover:text-pink-600 dark:hover:text-pink-400'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" strokeWidth={2} />
+                    <span>{label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
 
-      {/* Telegram promo — some quando já conectado */}
+      {/* Telegram promo */}
       {!telegramConnected && (
         <div className="px-4 pb-4">
           <div className="rounded-2xl p-4 bg-gradient-to-br from-fuchsia-500 to-pink-500 text-white shadow-lg shadow-pink-500/20">

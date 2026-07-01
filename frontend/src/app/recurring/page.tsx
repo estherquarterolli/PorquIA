@@ -51,7 +51,7 @@ export default function RecurringPage() {
         occurrences: endDate ? undefined : parseInt(months) || 12,
       });
       setDescription(''); setAmount(''); setCategory(''); setEndDate('');
-      setToast(`Gasto fixo criado: ${r.created} ocorrência(s) ✅`);
+      setToast(`Gasto fixo criado: ${r.created} ocorrência(s).`);
       setTimeout(() => setToast(null), 3500);
       load();
     } catch (err) {
@@ -64,7 +64,7 @@ export default function RecurringPage() {
   async function handleEnd(description: string, fromMonth: string) {
     await api.endRecurring(description, fromMonth);
     setEnding(null);
-    setToast('Recorrente encerrado ✅');
+    setToast('Recorrente encerrado.');
     setTimeout(() => setToast(null), 3500);
     load();
   }

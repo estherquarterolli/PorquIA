@@ -50,7 +50,7 @@ export default function CheckoutSuccessPage() {
             <div className="w-16 h-16 mx-auto rounded-2xl bg-emerald-100 dark:bg-emerald-950/40 flex items-center justify-center mb-6">
               <CheckCircle2 className="w-9 h-9 text-emerald-600 dark:text-emerald-400" />
             </div>
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Pagamento confirmado! 🎉</h1>
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Pagamento confirmado!</h1>
             <p className="text-slate-600 dark:text-slate-400">Bem-vindo ao PorquIA. Redirecionando para o seu dashboard...</p>
           </>
         ) : timedOut ? (

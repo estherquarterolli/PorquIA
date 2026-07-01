@@ -20,6 +20,7 @@ import {
   ScanSearch, Lightbulb,
   CalendarRange,
   Smartphone, Settings,
+  ArrowDownLeft, Tag,
 } from 'lucide-react';
 
 const TUTORIALS: Record<string, { title: string; steps: TutorialStep[] }> = {
@@ -44,7 +45,7 @@ const TUTORIALS: Record<string, { title: string; steps: TutorialStep[] }> = {
     ],
   },
   '/transactions': {
-    title: 'Transações',
+    title: 'Despesas',
     steps: [
       {
         icon: PenLine,
@@ -163,6 +164,36 @@ const TUTORIALS: Record<string, { title: string; steps: TutorialStep[] }> = {
       },
     ],
   },
+  '/income': {
+    title: 'Receitas',
+    steps: [
+      {
+        icon: ArrowDownLeft,
+        title: 'Registre suas Entradas',
+        description: 'Informe descrição, valor e mês de competência. Ideal para salário, freelances e outros recebimentos.',
+      },
+      {
+        icon: CalendarDays,
+        title: 'Mês de Competência',
+        description: 'Escolha o mês a que a receita pertence — útil para registrar salário atrasado ou adiantamento.',
+      },
+    ],
+  },
+  '/categories': {
+    title: 'Categorias',
+    steps: [
+      {
+        icon: Tag,
+        title: 'Categorias Padrão',
+        description: 'As categorias padrão (alimentação, moradia, saúde...) são fixas e não podem ser removidas.',
+      },
+      {
+        icon: PenLine,
+        title: 'Crie Categorias Personalizadas',
+        description: 'Adicione categorias próprias como "pet shop", "viagem" ou "academia" e use-as nas transações.',
+      },
+    ],
+  },
   '/settings': {
     title: 'Configurações',
     steps: [
@@ -187,7 +218,9 @@ const AUTH_NO_CHROME_ROUTES = ['/paywall', '/checkout/success'];
 
 const TITLES: Record<string, string> = {
   '/dashboard': 'Dashboard',
-  '/transactions': 'Transações',
+  '/transactions': 'Despesas',
+  '/income': 'Receitas',
+  '/categories': 'Categorias',
   '/budgets': 'Orçamentos',
   '/recurring': 'Gastos Fixos',
   '/upcoming': 'Próximos Meses',

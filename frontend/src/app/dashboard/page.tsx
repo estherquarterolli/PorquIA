@@ -114,7 +114,6 @@ export default function DashboardPage() {
           <span className="bg-gradient-to-r from-fuchsia-600 to-pink-600 dark:from-fuchsia-400 dark:to-pink-400 bg-clip-text text-transparent">
             {firstName}
           </span>{' '}
-          👋
         </h1>
         <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
           Aqui está o resumo das suas finanças
