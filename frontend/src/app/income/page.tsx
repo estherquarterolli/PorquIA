@@ -424,11 +424,3 @@ function EditIncomeModal({
     </div>
   );
 }
-
-const PAYMENT_METHODS = [
-  { value: 'pix', label: 'Pix' },
-  { value: 'transferência', label: 'Transferência' },
-  { value: 'dinheiro', label: 'Dinheiro' },
-  { value: 'cartão_crédito', label: 'Cartão de crédito' },
-  { value: 'outro', label: 'Outro' },
-];
