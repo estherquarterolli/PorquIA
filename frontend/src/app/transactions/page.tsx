@@ -450,14 +450,8 @@ export default function TransactionsPage() {
                         onChange={() => toggleSelect(tx.id)}
                         className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 cursor-pointer accent-fuchsia-600 flex-shrink-0"
                       />
-                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                        tx.type === 'receita' ? 'bg-blue-100 dark:bg-blue-900/30' : 'bg-rose-100 dark:bg-rose-900/30'
-                      }`}>
-                        {tx.type === 'receita' ? (
-                          <TrendingUp className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                        ) : (
-                          <TrendingDown className="w-5 h-5 text-rose-600 dark:text-rose-400" />
-                        )}
+                      <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 bg-rose-100 dark:bg-rose-900/30">
+                        <TrendingDown className="w-5 h-5 text-rose-600 dark:text-rose-400" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-slate-900 dark:text-white text-sm">{tx.description}</p>
@@ -468,10 +462,8 @@ export default function TransactionsPage() {
                           )}
                         </p>
                       </div>
-                      <p className={`font-bold tabular-nums text-sm ${
-                        tx.type === 'receita' ? 'text-blue-600 dark:text-blue-400' : 'text-rose-600 dark:text-rose-400'
-                      }`}>
-                        {tx.type === 'receita' ? '+' : '-'}{brl(tx.amount)}
+                      <p className="font-bold tabular-nums text-sm text-rose-600 dark:text-rose-400">
+                        -{brl(tx.amount)}
                       </p>
                       <button
                         onClick={() => setEditing(tx)}

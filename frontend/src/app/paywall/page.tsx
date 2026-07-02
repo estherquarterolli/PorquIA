@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { api, BillingStatus } from '@/lib/api';
+import Image from 'next/image';
 import { Check, Sparkles, LogOut, RefreshCw, ArrowRight } from 'lucide-react';
 
 const PLAN_FEATURES = [
@@ -74,7 +75,7 @@ export default function PaywallPage() {
         {/* Top bar */}
         <div className="flex items-center justify-between mb-10">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 bg-gradient-to-br from-fuchsia-500 to-pink-600 rounded-xl flex items-center justify-center text-white font-bold">P</div>
+            <Image src="/logo-porquia.png" alt="PorquIA" width={36} height={36} className="rounded-xl" />
             <span className="font-bold text-slate-900 dark:text-white">PorquIA</span>
           </div>
           <button
