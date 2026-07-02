@@ -123,7 +123,7 @@ export default function TransactionsPage() {
       const cb = new Date(b.created_at || b.date).getTime();
       return cb - ca;
     });
-  }, [transactions, search, typeFilter, categoryFilter, paymentFilter, monthFilter]);
+  }, [transactions, search, categoryFilter, paymentFilter, monthFilter]);
 
   const PAYMENT_LABEL: Record<string, string> = {
     pix: 'Pix', cartão_crédito: 'Cartão de crédito', cartão_débito: 'Cartão de débito',
